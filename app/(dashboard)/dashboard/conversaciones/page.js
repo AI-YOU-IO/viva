@@ -133,9 +133,7 @@ export default function ConversacionesPage() {
                         <p className="text-xs text-gray-500">{contacto.celular || ''}</p>
                       </div>
                     </div>
-                    <span className="text-xs text-gray-500">{contacto.timestamp || 'hace poco'}</span>
                   </div>
-                  <p className="text-sm text-gray-600 truncate">{'Sin mensajes'}</p>
                   {contacto.unread > 0 && (
                     <div className="mt-2">
                       <span className="inline-block px-2 py-0.5 bg-danger-500 text-white text-xs font-semibold rounded-full">
