@@ -1,12 +1,15 @@
-# Dockerfile para Next.js - Optimizado para EasyPanel
-# Multi-stage build para imagen ligera
-
-# Stage 1: Dependencies
+# --------------------------------------
+# 1. Stage: Dependencias
+# --------------------------------------
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
+RUN apk add --no-cache libc6-compat
+
+# Copia solo los archivos necesarios para instalar dependencias
 COPY package.json package-lock.json* yarn.lock* pnpm-lock.yaml* ./
+
+# Instalación inteligente según lockfile
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci; \
@@ -14,42 +17,45 @@ RUN \
   else npm install; \
   fi
 
-# Stage 2: Builder
+
+# --------------------------------------
+# 2. Stage: Builder
+# --------------------------------------
 FROM node:20-alpine AS builder
 WORKDIR /app
+
+ENV NEXT_TELEMETRY_DISABLED=1
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Variables de entorno para build
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-# Deshabilitar telemetría de Next.js
-ENV NEXT_TELEMETRY_DISABLED=1
-
 RUN npm run build
 
-# Stage 3: Runner
+
+# --------------------------------------
+# 3. Stage: Runner (ultra-liviano)
+# --------------------------------------
 FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Crear usuario no root
+RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
 
+# Copiar build standalone
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
-
-# Copiar archivos de build de Next.js
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
 EXPOSE 3021
-
 ENV PORT=3021
-ENV HOSTNAME="0.0.0.0"
+ENV HOSTNAME=0.0.0.0
 
 CMD ["node", "server.js"]
