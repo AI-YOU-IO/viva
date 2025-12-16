@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '@/lib/api';
 
 const CONTACTS_PER_PAGE = 20;
@@ -37,12 +37,49 @@ export default function ConversacionesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchTimeout, setSearchTimeout] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [newMessage, setNewMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [togglingBot, setTogglingBot] = useState(false);
 
   // Estados y tipificaciones para filtros
   const [estados, setEstados] = useState([]);
   const [tipificaciones, setTipificaciones] = useState([]);
   const [selectedEstado, setSelectedEstado] = useState('');
   const [selectedTipificacion, setSelectedTipificacion] = useState('');
+
+  // Estados para menu y edicion de prospecto
+  const [showMenu, setShowMenu] = useState(false);
+  const [showEditProspectoModal, setShowEditProspectoModal] = useState(false);
+  const [editingProspecto, setEditingProspecto] = useState(null);
+  const [proveedores, setProveedores] = useState([]);
+  const [planes, setPlanes] = useState([]);
+  const [savingProspecto, setSavingProspecto] = useState(false);
+
+  // Ref para el contenedor de mensajes y el final de mensajes
+  const messagesContainerRef = useRef(null);
+  const messagesEndRef = useRef(null);
+
+  // Funcion para hacer scroll al final
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
+    }
+  };
+
+  // Scroll al final cuando cambian los mensajes y terminan de cargar
+  useEffect(() => {
+    if (chatMessages.length > 0 && !loadingMessages) {
+      // Ejecutar scroll con delays para asegurar que el DOM esté actualizado
+      const timer1 = setTimeout(scrollToBottom, 50);
+      const timer2 = setTimeout(scrollToBottom, 150);
+      const timer3 = setTimeout(scrollToBottom, 300);
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        clearTimeout(timer3);
+      };
+    }
+  }, [chatMessages, loadingMessages]);
 
   // Construir query params para filtros
   const buildFilterParams = (estadoId, tipificacionId) => {
@@ -127,6 +164,28 @@ export default function ConversacionesPage() {
       }
     } catch (err) {
       console.error('Error al cargar tipificaciones:', err);
+    }
+
+    // Cargar proveedores
+    try {
+      const response = await fetch(`${API_URL}/crm/leads/proveedores`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        setProveedores(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error al cargar proveedores:', err);
+    }
+
+    // Cargar planes
+    try {
+      const response = await fetch(`${API_URL}/crm/leads/planes`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        setPlanes(data.data || []);
+      }
+    } catch (err) {
+      console.error('Error al cargar planes:', err);
     }
   };
 
@@ -255,6 +314,7 @@ export default function ConversacionesPage() {
     setSelectedChat(contacto);
     setLoadingMessages(true);
     setChatMessages([]);
+    setNewMessage('');
 
     try {
       // Cargar mensajes del endpoint /crm/contacto/{id}/mensajes
@@ -274,11 +334,149 @@ export default function ConversacionesPage() {
 
       setChatMessages(messages);
       console.log('Mensajes cargados:', messages);
+
+      // Marcar ultimo mensaje como visto
+      if (messages.length > 0) {
+        const lastMessageId = Math.max(...messages.map(m => m.id));
+        try {
+          await apiClient.post(`/crm/contacto/${contacto.id}/mark-read`, {
+            idMensaje: lastMessageId
+          });
+          // Actualizar el contador de mensajes no leidos en la lista de contactos
+          setContactos(prev => prev.map(c =>
+            c.id === contacto.id ? { ...c, mensajes_no_leidos: 0 } : c
+          ));
+        } catch (markErr) {
+          console.error('Error al marcar mensaje como visto:', markErr);
+        }
+      }
     } catch (err) {
       console.error('Error al cargar mensajes:', err);
       setChatMessages([]);
     } finally {
       setLoadingMessages(false);
+    }
+  };
+
+  // Enviar mensaje
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedChat || sendingMessage) return;
+
+    setSendingMessage(true);
+    const messageContent = newMessage.trim();
+
+    try {
+      await apiClient.post(`/crm/contacto/${selectedChat.id}/mensajes`, {
+        contenido: messageContent
+      });
+
+      // Agregar mensaje al chat local
+      const newMsg = {
+        id: Date.now(),
+        type: 'ai',
+        text: messageContent,
+        timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+      };
+      setChatMessages(prev => [...prev, newMsg]);
+      setNewMessage('');
+    } catch (err) {
+      console.error('Error al enviar mensaje:', err);
+      alert('Error al enviar el mensaje');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  // Toggle bot activo
+  const handleToggleBot = async () => {
+    if (!selectedChat || togglingBot) return;
+
+    setTogglingBot(true);
+    try {
+      const response = await apiClient.patch(`/crm/contacto/${selectedChat.id}/toggle-bot`);
+      const newBotActivo = response.data?.bot_activo;
+
+      // Actualizar el estado local del chat seleccionado
+      setSelectedChat(prev => ({ ...prev, bot_activo: newBotActivo }));
+
+      // Actualizar en la lista de contactos
+      setContactos(prev => prev.map(c =>
+        c.id === selectedChat.id ? { ...c, bot_activo: newBotActivo } : c
+      ));
+    } catch (err) {
+      console.error('Error al cambiar estado del bot:', err);
+      alert('Error al cambiar estado del bot');
+    } finally {
+      setTogglingBot(false);
+    }
+  };
+
+  // Abrir modal de edicion de prospecto
+  const handleOpenEditProspecto = () => {
+    if (!selectedChat) return;
+    setEditingProspecto({
+      id: selectedChat.id_prospecto || selectedChat.id,
+      nombre_completo: selectedChat.nombre_completo || '',
+      dni: selectedChat.dni || '',
+      celular: selectedChat.celular || '',
+      direccion: selectedChat.direccion || '',
+      id_estado: selectedChat.id_estado || '',
+      id_provedor: selectedChat.id_provedor || '',
+      id_plan: selectedChat.id_plan || '',
+      id_tipificacion: selectedChat.id_tipificacion || ''
+    });
+    setShowEditProspectoModal(true);
+    setShowMenu(false);
+  };
+
+  // Manejar cambios en el formulario de edicion
+  const handleEditProspectoChange = (field, value) => {
+    setEditingProspecto(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Guardar cambios del prospecto
+  const handleSaveProspecto = async () => {
+    if (!editingProspecto) return;
+
+    setSavingProspecto(true);
+    try {
+      await apiClient.put(`/crm/leads/${editingProspecto.id}`, editingProspecto);
+
+      // Actualizar el chat seleccionado con los nuevos datos
+      const updatedChat = {
+        ...selectedChat,
+        nombre_completo: editingProspecto.nombre_completo,
+        dni: editingProspecto.dni,
+        celular: editingProspecto.celular,
+        direccion: editingProspecto.direccion,
+        id_estado: editingProspecto.id_estado,
+        id_provedor: editingProspecto.id_provedor,
+        id_plan: editingProspecto.id_plan,
+        id_tipificacion: editingProspecto.id_tipificacion,
+        estado_nombre: estados.find(e => e.id == editingProspecto.id_estado)?.nombre || selectedChat.estado_nombre,
+        estado_color: estados.find(e => e.id == editingProspecto.id_estado)?.color || selectedChat.estado_color,
+        tipificacion_nombre: tipificaciones.find(t => t.id == editingProspecto.id_tipificacion)?.nombre || selectedChat.tipificacion_nombre,
+        tipificacion_color: tipificaciones.find(t => t.id == editingProspecto.id_tipificacion)?.color || selectedChat.tipificacion_color
+      };
+
+      setSelectedChat(updatedChat);
+
+      // Actualizar en la lista de contactos
+      setContactos(prev => prev.map(c =>
+        c.id === selectedChat.id ? updatedChat : c
+      ));
+
+      setShowEditProspectoModal(false);
+      setEditingProspecto(null);
+    } catch (err) {
+      console.error('Error al guardar prospecto:', err);
+      alert('Error al guardar los cambios');
+    } finally {
+      setSavingProspecto(false);
     }
   };
 
@@ -406,13 +604,39 @@ export default function ConversacionesPage() {
                     className={`p-3 border-b border-gray-200 cursor-pointer transition-colors ${
                       selectedChat?.id === contacto.id
                         ? 'bg-primary-50 border-l-4 border-l-primary-600'
+                        : contacto.mensajes_no_leidos > 0
+                        ? 'bg-blue-50/60 hover:bg-blue-100/60'
                         : 'hover:bg-gray-50'
                     }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex items-center space-x-2 flex-1 min-w-0">
-                        <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-                          {(contacto.nombre_completo || contacto.celular || '?').charAt(0).toUpperCase()}
+                        <div className="relative flex-shrink-0">
+                          <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                            {(contacto.nombre_completo || contacto.celular || '?').charAt(0).toUpperCase()}
+                          </div>
+                          {/* Indicador de mensajes no leidos con conteo */}
+                          {contacto.mensajes_no_leidos > 0 && (
+                            <div
+                              className="absolute -top-1 -right-1 min-w-5 h-5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center"
+                              title={`${contacto.mensajes_no_leidos} mensaje${contacto.mensajes_no_leidos > 1 ? 's' : ''} no leído${contacto.mensajes_no_leidos > 1 ? 's' : ''}`}
+                            >
+                              <span className="text-xs font-bold text-white px-1">
+                                {contacto.mensajes_no_leidos > 99 ? '99+' : contacto.mensajes_no_leidos}
+                              </span>
+                            </div>
+                          )}
+                          {/* Indicador Bot Activo/Inactivo */}
+                          <div
+                            className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center ${
+                              contacto.bot_activo ? 'bg-green-500' : 'bg-red-500'
+                            }`}
+                            title={contacto.bot_activo ? 'Bot activo' : 'Bot inactivo'}
+                          >
+                            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                            </svg>
+                          </div>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
@@ -537,10 +761,69 @@ export default function ConversacionesPage() {
                   </div>
                 </div>
               </div>
+              <div className="flex items-center space-x-2">
+                {/* Boton Toggle Bot */}
+                <button
+                  onClick={handleToggleBot}
+                  disabled={togglingBot}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                    selectedChat.bot_activo
+                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  title={selectedChat.bot_activo ? 'Bot activo - Click para desactivar' : 'Bot inactivo - Click para activar'}
+                >
+                  {togglingBot ? (
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                    </svg>
+                  )}
+                  <span>{selectedChat.bot_activo ? 'Bot Activo' : 'Bot Inactivo'}</span>
+                </button>
+
+                {/* Boton Menu con Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowMenu(!showMenu)}
+                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                    title="Opciones"
+                  >
+                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                    </svg>
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {showMenu && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setShowMenu(false)}
+                      />
+                      <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                        <button
+                          onClick={handleOpenEditProspecto}
+                          className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          <span>Editar Prospecto</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Mensajes */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
               {loadingMessages ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
@@ -549,43 +832,46 @@ export default function ConversacionesPage() {
                   </div>
                 </div>
               ) : chatMessages.length > 0 ? (
-                chatMessages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.type === 'ai' ? 'justify-start' : 'justify-end'} mb-2`}
-                  >
-                    <div className={`flex flex-col ${message.type === 'ai' ? 'items-start' : 'items-end'} max-w-xs lg:max-w-md`}>
-                      {/* Badge IA Bot - solo para mensajes de IA */}
-                      {message.type === 'ai' && (
-                        <div className="flex items-center space-x-1 mb-1 px-3">
-                          <svg className="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-                          </svg>
-                          <span className="text-xs font-semibold text-purple-700">AI Bot</span>
-                        </div>
-                      )}
-
-                      {/* Mensaje */}
-                      <div
-                        className={`px-4 py-2 rounded-2xl break-words ${
-                          message.type === 'ai'
-                            ? 'bg-gray-200 text-gray-900 rounded-bl-none'
-                            : 'bg-primary-600 text-white rounded-br-none'
-                        }`}
-                      >
-                        <p className="text-sm leading-relaxed">{message.text}</p>
-                        {message.file && (
-                          <p className="text-xs mt-1 opacity-75">[Archivo adjunto]</p>
+                <>
+                  {chatMessages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.type === 'ai' ? 'justify-start' : 'justify-end'} mb-2`}
+                    >
+                      <div className={`flex flex-col ${message.type === 'ai' ? 'items-start' : 'items-end'} max-w-xs lg:max-w-md`}>
+                        {/* Badge IA Bot - solo para mensajes de IA */}
+                        {message.type === 'ai' && (
+                          <div className="flex items-center space-x-1 mb-1 px-3">
+                            <svg className="w-3 h-3 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                            </svg>
+                            <span className="text-xs font-semibold text-purple-700">AI Bot</span>
+                          </div>
                         )}
-                      </div>
 
-                      {/* Timestamp */}
-                      <span className={`text-xs text-gray-500 mt-1 ${message.type === 'ai' ? 'text-left' : 'text-right'}`}>
-                        {message.timestamp}
-                      </span>
+                        {/* Mensaje */}
+                        <div
+                          className={`px-4 py-2 rounded-2xl break-words ${
+                            message.type === 'ai'
+                              ? 'bg-gray-200 text-gray-900 rounded-bl-none'
+                              : 'bg-primary-600 text-white rounded-br-none'
+                          }`}
+                        >
+                          <p className="text-sm leading-relaxed">{message.text}</p>
+                          {message.file && (
+                            <p className="text-xs mt-1 opacity-75">[Archivo adjunto]</p>
+                          )}
+                        </div>
+
+                        {/* Timestamp */}
+                        <span className={`text-xs text-gray-500 mt-1 ${message.type === 'ai' ? 'text-left' : 'text-right'}`}>
+                          {message.timestamp}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                  <div ref={messagesEndRef} />
+                </>
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center text-gray-500">
@@ -594,6 +880,46 @@ export default function ConversacionesPage() {
                 </div>
               )}
             </div>
+
+            {/* Input para enviar mensaje */}
+            <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-white">
+              {selectedChat.bot_activo ? (
+                <div className="flex items-center justify-center space-x-2 py-2 px-4 bg-green-50 border border-green-200 rounded-lg">
+                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                  </svg>
+                  <span className="text-green-700 font-medium">Bot activo - Desactiva el bot para enviar mensajes manualmente</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Escribe un mensaje..."
+                    disabled={sendingMessage}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newMessage.trim() || sendingMessage}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  >
+                    {sendingMessage ? (
+                      <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                    )}
+                    <span>{sendingMessage ? 'Enviando...' : 'Enviar'}</span>
+                  </button>
+                </div>
+              )}
+            </form>
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center bg-gray-50">
@@ -607,6 +933,150 @@ export default function ConversacionesPage() {
           </div>
         )}
       </div>
+
+      {/* Modal Editar Prospecto */}
+      {showEditProspectoModal && editingProspecto && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Editar Prospecto</h2>
+              <button
+                onClick={() => {
+                  setShowEditProspectoModal(false);
+                  setEditingProspecto(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
+                  <input
+                    type="text"
+                    value={editingProspecto.nombre_completo || ''}
+                    onChange={(e) => handleEditProspectoChange('nombre_completo', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">DNI</label>
+                  <input
+                    type="text"
+                    value={editingProspecto.dni || ''}
+                    onChange={(e) => handleEditProspectoChange('dni', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Celular</label>
+                  <input
+                    type="text"
+                    value={editingProspecto.celular || ''}
+                    onChange={(e) => handleEditProspectoChange('celular', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Direccion</label>
+                  <input
+                    type="text"
+                    value={editingProspecto.direccion || ''}
+                    onChange={(e) => handleEditProspectoChange('direccion', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                  <select
+                    value={editingProspecto.id_estado || ''}
+                    onChange={(e) => handleEditProspectoChange('id_estado', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                  >
+                    <option value="">Seleccionar estado</option>
+                    {estados.map(estado => (
+                      <option key={estado.id} value={estado.id}>{estado.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipificacion</label>
+                  <select
+                    value={editingProspecto.id_tipificacion || ''}
+                    onChange={(e) => handleEditProspectoChange('id_tipificacion', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                  >
+                    <option value="">Seleccionar tipificacion</option>
+                    {tipificaciones.map(tipificacion => (
+                      <option key={tipificacion.id} value={tipificacion.id}>{tipificacion.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
+                  <select
+                    value={editingProspecto.id_provedor || ''}
+                    onChange={(e) => handleEditProspectoChange('id_provedor', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                  >
+                    <option value="">Seleccionar proveedor</option>
+                    {proveedores.map(proveedor => (
+                      <option key={proveedor.id} value={proveedor.id}>{proveedor.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Plan</label>
+                  <select
+                    value={editingProspecto.id_plan || ''}
+                    onChange={(e) => handleEditProspectoChange('id_plan', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                  >
+                    <option value="">Seleccionar plan</option>
+                    {planes.map(plan => (
+                      <option key={plan.id} value={plan.id}>{plan.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 p-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowEditProspectoModal(false);
+                  setEditingProspecto(null);
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveProspecto}
+                disabled={savingProspecto}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {savingProspecto ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <span>Guardar Cambios</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

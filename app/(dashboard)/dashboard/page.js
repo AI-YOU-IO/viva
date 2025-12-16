@@ -209,7 +209,7 @@ export default function DashboardPage() {
             <div className="text-center p-4 bg-yellow-50 rounded-lg">
               <p className="text-3xl font-bold text-yellow-600">{stats?.contactados?.toLocaleString() || 0}</p>
               <p className="text-sm text-yellow-700 mt-1">Contactados</p>
-              <p className="text-xs text-yellow-500 mt-0.5">Mas de 2 mensajes</p>
+              <p className="text-xs text-yellow-500 mt-0.5">Tiene mensaje</p>
             </div>
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <p className="text-3xl font-bold text-green-600">{stats?.interesados?.toLocaleString() || 0}</p>

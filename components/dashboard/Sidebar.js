@@ -1,14 +1,35 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { apiClient } from '@/lib/api';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { data: session } = useSession();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Cargar conteo de mensajes no leidos
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await apiClient.get('/crm/contactos/unread/count');
+        setUnreadCount(response.data?.data?.unreadCount || 0);
+      } catch (error) {
+        console.error('Error al cargar conteo de no leidos:', error);
+      }
+    };
+
+    if (session?.accessToken) {
+      fetchUnreadCount();
+      // Actualizar cada 30 segundos
+      const interval = setInterval(fetchUnreadCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [session?.accessToken]);
 
   const menuItems = [
     {
@@ -29,7 +50,7 @@ export default function Sidebar() {
         </svg>
       ),
       path: '/conversaciones',
-      badge: 5,
+      badge: unreadCount > 0 ? unreadCount : null,
     },
     {
       name: 'Leads',

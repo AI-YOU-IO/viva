@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { apiClient } from '@/lib/api';
 import * as XLSX from 'xlsx';
 
@@ -40,6 +41,7 @@ const DATE_RANGES = [
 const ITEMS_PER_PAGE = 50;
 
 export default function LeadsPage() {
+  const { data: session } = useSession();
   const [leads, setLeads] = useState([]);
   const [estados, setEstados] = useState([]);
   const [tipificaciones, setTipificaciones] = useState([]);
@@ -50,32 +52,103 @@ export default function LeadsPage() {
   const [dateTo, setDateTo] = useState('');
   const [selectedEstado, setSelectedEstado] = useState('');
   const [selectedTipificacion, setSelectedTipificacion] = useState('');
+  const [selectedAsesorFilter, setSelectedAsesorFilter] = useState('');
+  const [asesoresFilter, setAsesoresFilter] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedLeads, setSelectedLeads] = useState([]);
   const [showAsesorModal, setShowAsesorModal] = useState(false);
   const [asesores, setAsesores] = useState([]);
   const [assigningAsesor, setAssigningAsesor] = useState(false);
+  const [selectedAsesorId, setSelectedAsesorId] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingLead, setEditingLead] = useState(null);
+  const [proveedores, setProveedores] = useState([]);
+  const [planes, setPlanes] = useState([]);
+  const [savingLead, setSavingLead] = useState(false);
+
+  // Verificar si el usuario puede filtrar por asesor (rol 1 o 2)
+  const canFilterByAsesor = session?.user?.id_rol === 1 || session?.user?.id_rol === 2;
 
   useEffect(() => {
     loadData();
   }, []);
 
+  // Cargar asesores para filtro cuando la session cambie
+  useEffect(() => {
+    const loadAsesoresFilter = async () => {
+      if (canFilterByAsesor) {
+        try {
+          const response = await apiClient.get('/crm/leads/asesores');
+          setAsesoresFilter(response.data || []);
+        } catch (error) {
+          console.error('Error al cargar asesores para filtro:', error);
+        }
+      }
+    };
+    loadAsesoresFilter();
+  }, [canFilterByAsesor]);
+
   const loadData = async () => {
     try {
       setLoading(true);
-      const [leadsRes, estadosRes, tipificacionesRes] = await Promise.all([
+      const [leadsRes, estadosRes, tipificacionesRes, proveedoresRes, planesRes] = await Promise.all([
         apiClient.get('/crm/leads'),
         apiClient.get('/crm/estados'),
-        apiClient.get('/crm/tipificaciones')
+        apiClient.get('/crm/tipificaciones'),
+        apiClient.get('/crm/leads/proveedores'),
+        apiClient.get('/crm/leads/planes')
       ]);
       setLeads(leadsRes.data || []);
       setEstados(estadosRes.data || []);
       setTipificaciones(tipificacionesRes.data || []);
+      setProveedores(proveedoresRes.data || []);
+      setPlanes(planesRes.data || []);
     } catch (error) {
       console.error('Error al cargar datos:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenEditModal = (lead) => {
+    setEditingLead({
+      id: lead.id,
+      nombre_completo: lead.nombre_completo || '',
+      dni: lead.dni || '',
+      celular: lead.celular || lead.contacto_celular || '',
+      direccion: lead.direccion || '',
+      id_estado: lead.id_estado || '',
+      id_provedor: lead.id_provedor || '',
+      id_plan: lead.id_plan || '',
+      id_tipificacion: lead.id_tipificacion || '',
+      id_asesor: lead.id_asesor || ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditChange = (field, value) => {
+    setEditingLead(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSaveLead = async () => {
+    if (!editingLead) return;
+
+    try {
+      setSavingLead(true);
+      await apiClient.put(`/crm/leads/${editingLead.id}`, editingLead);
+      alert('Lead actualizado correctamente');
+      setShowEditModal(false);
+      setEditingLead(null);
+      loadData();
+    } catch (error) {
+      console.error('Error al actualizar lead:', error);
+      alert('Error al actualizar lead');
+    } finally {
+      setSavingLead(false);
     }
   };
 
@@ -149,7 +222,10 @@ export default function LeadsPage() {
     // Filtro de tipificación
     const matchesTipificacion = !selectedTipificacion || lead.id_tipificacion === parseInt(selectedTipificacion);
 
-    return matchesSearch && matchesDate && matchesEstado && matchesTipificacion;
+    // Filtro de asesor
+    const matchesAsesor = !selectedAsesorFilter || lead.id_asesor === parseInt(selectedAsesorFilter);
+
+    return matchesSearch && matchesDate && matchesEstado && matchesTipificacion && matchesAsesor;
   });
 
   const formatDate = (dateString) => {
@@ -178,6 +254,7 @@ export default function LeadsPage() {
     setDateTo('');
     setSelectedEstado('');
     setSelectedTipificacion('');
+    setSelectedAsesorFilter('');
     setCurrentPage(1);
   };
 
@@ -208,6 +285,7 @@ export default function LeadsPage() {
     try {
       const response = await apiClient.get('/crm/leads/asesores');
       setAsesores(response.data || []);
+      setSelectedAsesorId('');
       setShowAsesorModal(true);
     } catch (error) {
       console.error('Error al cargar asesores:', error);
@@ -241,9 +319,9 @@ export default function LeadsPage() {
   // Resetear página cuando cambian los filtros
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, dateRange, dateFrom, dateTo, selectedEstado, selectedTipificacion]);
+  }, [searchTerm, dateRange, dateFrom, dateTo, selectedEstado, selectedTipificacion, selectedAsesorFilter]);
 
-  const hasActiveFilters = searchTerm || dateRange !== 'all' || selectedEstado || selectedTipificacion;
+  const hasActiveFilters = searchTerm || dateRange !== 'all' || selectedEstado || selectedTipificacion || selectedAsesorFilter;
 
   const handleExportExcel = () => {
     const dataToExport = filteredLeads.map(lead => ({
@@ -426,6 +504,25 @@ export default function LeadsPage() {
             </select>
           </div>
 
+          {/* Filtro de Asesor - Solo para rol 1 y 2 */}
+          {canFilterByAsesor && (
+            <div className="min-w-[150px]">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Asesor</label>
+              <select
+                value={selectedAsesorFilter}
+                onChange={(e) => setSelectedAsesorFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="">Todos</option>
+                {asesoresFilter.map((asesor) => (
+                  <option key={asesor.id} value={asesor.id}>
+                    {asesor.username}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Fechas personalizadas */}
           {dateRange === 'custom' && (
             <>
@@ -531,6 +628,7 @@ export default function LeadsPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipificacion</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asesor</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -599,6 +697,17 @@ export default function LeadsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatDate(lead.created_at)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <button
+                      onClick={() => handleOpenEditModal(lead)}
+                      className="text-blue-600 hover:text-blue-800 p-1"
+                      title="Editar lead"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -713,34 +822,235 @@ export default function LeadsPage() {
               {asesores.length === 0 ? (
                 <p className="text-center text-gray-500 py-4">No hay asesores disponibles</p>
               ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {asesores.map((asesor) => (
-                    <button
-                      key={asesor.id}
-                      onClick={() => handleAssignAsesor(asesor.id)}
-                      disabled={assigningAsesor}
-                      className="w-full flex items-center p-3 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                      </div>
-                      <div className="text-left">
-                        <p className="font-medium text-gray-900">{asesor.username}</p>
-                        <p className="text-sm text-gray-500">{asesor.email}</p>
-                      </div>
-                    </button>
-                  ))}
+                <div>
+                  <select
+                    value={selectedAsesorId}
+                    onChange={(e) => setSelectedAsesorId(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                  >
+                    <option value="">-- Seleccionar asesor --</option>
+                    {asesores.map((asesor) => (
+                      <option key={asesor.id} value={asesor.id}>
+                        {asesor.username} - {asesor.email}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
             </div>
-            <div className="flex justify-end p-4 border-t">
+            <div className="flex justify-end space-x-3 p-4 border-t">
               <button
                 onClick={() => setShowAsesorModal(false)}
                 className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
                 Cancelar
+              </button>
+              <button
+                onClick={() => handleAssignAsesor(selectedAsesorId)}
+                disabled={!selectedAsesorId || assigningAsesor}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                {assigningAsesor ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Asignando...</span>
+                  </>
+                ) : (
+                  <span>Aceptar</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edición de Lead */}
+      {showEditModal && editingLead && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Editar Lead #{editingLead.id}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingLead(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              {/* Nombre Completo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
+                <input
+                  type="text"
+                  value={editingLead.nombre_completo}
+                  onChange={(e) => handleEditChange('nombre_completo', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Ingrese nombre completo"
+                />
+              </div>
+
+              {/* DNI y Celular en una fila */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">DNI</label>
+                  <input
+                    type="text"
+                    value={editingLead.dni}
+                    onChange={(e) => handleEditChange('dni', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Ingrese DNI"
+                    maxLength={8}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Celular</label>
+                  <input
+                    type="text"
+                    value={editingLead.celular}
+                    onChange={(e) => handleEditChange('celular', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Ingrese celular"
+                    maxLength={9}
+                  />
+                </div>
+              </div>
+
+              {/* Direccion */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Direccion</label>
+                <input
+                  type="text"
+                  value={editingLead.direccion}
+                  onChange={(e) => handleEditChange('direccion', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Ingrese direccion"
+                />
+              </div>
+
+              {/* Estado y Tipificacion en una fila */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                  <select
+                    value={editingLead.id_estado || ''}
+                    onChange={(e) => handleEditChange('id_estado', e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">-- Seleccionar --</option>
+                    {estados.map((estado) => (
+                      <option key={estado.id} value={estado.id}>
+                        {estado.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipificacion</label>
+                  <select
+                    value={editingLead.id_tipificacion || ''}
+                    onChange={(e) => handleEditChange('id_tipificacion', e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">-- Seleccionar --</option>
+                    {tipificaciones.map((tip) => (
+                      <option key={tip.id} value={tip.id}>
+                        {tip.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Proveedor y Plan en una fila */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
+                  <select
+                    value={editingLead.id_provedor || ''}
+                    onChange={(e) => handleEditChange('id_provedor', e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">-- Seleccionar --</option>
+                    {proveedores.map((prov) => (
+                      <option key={prov.id} value={prov.id}>
+                        {prov.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Plan</label>
+                  <select
+                    value={editingLead.id_plan || ''}
+                    onChange={(e) => handleEditChange('id_plan', e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">-- Seleccionar --</option>
+                    {planes.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Asesor */}
+              {canFilterByAsesor && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Asesor</label>
+                  <select
+                    value={editingLead.id_asesor || ''}
+                    onChange={(e) => handleEditChange('id_asesor', e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">-- Sin asesor --</option>
+                    {asesoresFilter.map((asesor) => (
+                      <option key={asesor.id} value={asesor.id}>
+                        {asesor.username}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end space-x-3 p-4 border-t sticky bottom-0 bg-white">
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingLead(null);
+                }}
+                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveLead}
+                disabled={savingLead}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                {savingLead ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <span>Guardar Cambios</span>
+                )}
               </button>
             </div>
           </div>
