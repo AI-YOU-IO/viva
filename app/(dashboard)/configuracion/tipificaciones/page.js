@@ -30,6 +30,8 @@ export default function TipificacionesPage() {
   const [draggedItem, setDraggedItem] = useState(null);
   const [dragOverItem, setDragOverItem] = useState(null);
   const [savingOrder, setSavingOrder] = useState(false);
+  const [isAsesor, setIsAsesor] = useState(false);
+  const [isBot, setIsBot] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -91,6 +93,17 @@ export default function TipificacionesPage() {
       }
     }
   };
+
+  const handleSelection = (e) => {
+    if (e.target.id === "asesor") {
+      setIsAsesor(true);
+      setIsBot(false);
+    }
+    else {
+      setIsAsesor(false);
+      setIsBot(true);
+    }
+  }
 
   const resetForm = () => {
     setFormData({
@@ -218,13 +231,15 @@ export default function TipificacionesPage() {
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-          <div className="grid grid-cols-12 gap-4 text-xs font-semibold text-gray-500 uppercase">
-            <div className="col-span-1"></div>
-            <div className="col-span-1">#</div>
-            <div className="col-span-3">Nombre</div>
+          <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-500 uppercase">
+            {/* <div className="col-span-1"></div> */}
+            <div className="col-span-1 text-center">#</div>
+            <div className="col-span-2">Nombre</div>
             <div className="col-span-4">Definicion</div>
-            <div className="col-span-1">Color</div>
-            <div className="col-span-2 text-right">Acciones</div>
+            <div className="col-span-1 text-center">Color</div>
+            <div className="col-span-1 text-center">Asesor</div>
+            <div className="col-span-1 text-center">Bot</div>
+            <div className="col-span-2 text-center">Acciones</div>
           </div>
         </div>
 
@@ -237,24 +252,24 @@ export default function TipificacionesPage() {
               onDragEnd={handleDragEnd}
               onDragOver={(e) => handleDragOver(e, index)}
               onDrop={(e) => handleDrop(e, index)}
-              className={`grid grid-cols-12 gap-4 px-4 py-3 items-center transition-all cursor-move hover:bg-gray-50 ${
+              className={`grid grid-cols-12 gap-4 px-4 py-6 items-center transition-all cursor-move hover:bg-gray-50 ${
                 dragOverItem === index ? 'bg-primary-50 border-t-2 border-primary-500' : ''
               } ${draggedItem === index ? 'opacity-50' : ''}`}
             >
               {/* Drag Handle */}
-              <div className="col-span-1 flex items-center justify-center">
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {/* <div className="flex items-center justify-center space-x-1">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
                 </svg>
-              </div>
+              </div> */}
 
               {/* Orden */}
               <div className="col-span-1">
-                <span className="text-sm font-medium text-gray-500">{index + 1}</span>
+                <p className="text-sm font-medium text-gray-500 text-center">{index + 1}</p>
               </div>
 
               {/* Nombre */}
-              <div className="col-span-3 flex items-center space-x-3">
+              <div className="col-span-2 flex items-center space-x-2 gap-2">
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: tipificacion.color || '#3B82F6' }}
@@ -274,15 +289,49 @@ export default function TipificacionesPage() {
               </div>
 
               {/* Color */}
-              <div className="col-span-1 flex items-center space-x-2">
+              <div className=" col-span-1 flex items-center justify-center">
                 <div
                   className="w-6 h-6 rounded-full border border-gray-300"
                   style={{ backgroundColor: tipificacion.color || '#3B82F6' }}
                 ></div>
               </div>
 
+              {/* Flag Asesor */}
+              <div className="col-span-1 flex items-center justify-center">
+                {tipificacion.flag_asesor ? (
+                  <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                ) : (
+                  <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </span>
+                )}
+              </div>
+
+              {/* Flag Bot */}
+              <div className="col-span-1 flex items-center justify-center">
+                {tipificacion.flag_bot ? (
+                  <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                ) : (
+                  <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </span>
+                )}
+              </div>
+
               {/* Acciones */}
-              <div className="col-span-2 flex items-center justify-end space-x-2">
+              <div className="col-span-2 flex items-center justify-center space-x-1">
                 <button
                   onClick={(e) => { e.stopPropagation(); handleEdit(tipificacion); }}
                   className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
@@ -339,6 +388,28 @@ export default function TipificacionesPage() {
                   rows={3}
                   placeholder="Descripcion o definicion del motivo..."
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Habilitar para: </label>
+                <div className='flex flex-col gap-5 py-4'>
+                  <div class="inline-flex items-center">
+                    <label class="relative flex items-center cursor-pointer" for="asesor">
+                      <input name="framework" type="radio" onClick={handleSelection} class="peer h-5 w-5 cursor-pointer appearance-none rounded-full border border-slate-300 checked:border-slate-400 transition-all" id="asesor"/>
+                      <span class="absolute bg-slate-800 w-3 h-3 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                      </span>
+                    </label>
+                    <label class="ml-2 text-slate-600 cursor-pointer text-sm" for="asesor">Asesor</label>
+                  </div>
+                
+                  <div class="inline-flex items-center">
+                    <label class="relative flex items-center cursor-pointer" for="bot">
+                      <input name="framework" type="radio" onClick={handleSelection} class="peer h-5 w-5 cursor-pointer appearance-none rounded-full border border-slate-300 checked:border-slate-400 transition-all" id="bot"/>
+                      <span class="absolute bg-slate-800 w-3 h-3 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                      </span>
+                    </label>
+                    <label class="ml-2 text-slate-600 cursor-pointer text-sm" for="bot">Bot</label>
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
