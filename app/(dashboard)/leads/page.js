@@ -66,6 +66,10 @@ export default function LeadsPage() {
   const [proveedores, setProveedores] = useState([]);
   const [planes, setPlanes] = useState([]);
   const [savingLead, setSavingLead] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailLead, setDetailLead] = useState(null);
+  const [perfilamientoData, setPerfilamientoData] = useState([]);
+  const [loadingPerfilamiento, setLoadingPerfilamiento] = useState(false);
 
   // Verificar si el usuario puede filtrar por asesor (rol 1 o 2)
   const canFilterByAsesor = session?.user?.id_rol === 1 || session?.user?.id_rol === 2;
@@ -108,6 +112,21 @@ export default function LeadsPage() {
       console.error('Error al cargar datos:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenDetailModal = async (lead) => {
+    setDetailLead(lead);
+    setShowDetailModal(true);
+    setPerfilamientoData([]);
+    setLoadingPerfilamiento(true);
+    try {
+      const response = await apiClient.get(`/crm/leads/${lead.id}/perfilamiento`);
+      setPerfilamientoData(response.data || []);
+    } catch (error) {
+      console.error('Error al cargar perfilamiento:', error);
+    } finally {
+      setLoadingPerfilamiento(false);
     }
   };
 
@@ -699,15 +718,27 @@ export default function LeadsPage() {
                     {formatDate(lead.created_at)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <button
-                      onClick={() => handleOpenEditModal(lead)}
-                      className="text-blue-600 hover:text-blue-800 p-1"
-                      title="Editar lead"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
+                    <div className="flex items-center justify-center space-x-2">
+                      <button
+                        onClick={() => handleOpenDetailModal(lead)}
+                        className="text-gray-600 hover:text-gray-800 p-1"
+                        title="Ver detalle"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleOpenEditModal(lead)}
+                        className="text-blue-600 hover:text-blue-800 p-1"
+                        title="Editar lead"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1051,6 +1082,158 @@ export default function LeadsPage() {
                 ) : (
                   <span>Guardar Cambios</span>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalle de Lead */}
+      {showDetailModal && detailLead && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Detalle del Lead #{detailLead.id}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowDetailModal(false);
+                  setDetailLead(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              {/* Nombre Completo */}
+              <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-100">
+                <span className="text-sm font-medium text-gray-500">Nombre Completo</span>
+                <span className="col-span-2 text-sm text-gray-900">{detailLead.nombre_completo || '-'}</span>
+              </div>
+
+              {/* DNI */}
+              <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-100">
+                <span className="text-sm font-medium text-gray-500">DNI</span>
+                <span className="col-span-2 text-sm text-gray-900">{detailLead.dni || '-'}</span>
+              </div>
+
+              {/* Celular */}
+              <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-100">
+                <span className="text-sm font-medium text-gray-500">Celular</span>
+                <span className="col-span-2 text-sm text-gray-900">{detailLead.celular || detailLead.contacto_celular || '-'}</span>
+              </div>
+
+              {/* Direccion */}
+              <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-100">
+                <span className="text-sm font-medium text-gray-500">Direccion</span>
+                <span className="col-span-2 text-sm text-gray-900">{detailLead.direccion || '-'}</span>
+              </div>
+
+              {/* Estado */}
+              <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-100">
+                <span className="text-sm font-medium text-gray-500">Estado</span>
+                <div className="col-span-2">
+                  {detailLead.estado_nombre ? (
+                    <span
+                      className="px-3 py-1 text-xs font-semibold rounded-full text-white"
+                      style={{ backgroundColor: getColorHex(detailLead.estado_color) }}
+                    >
+                      {detailLead.estado_nombre}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-400">-</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Tipificacion */}
+              <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-100">
+                <span className="text-sm font-medium text-gray-500">Tipificacion</span>
+                <div className="col-span-2">
+                  {detailLead.tipificacion_nombre ? (
+                    <span
+                      className="px-3 py-1 text-xs font-semibold rounded-full text-white"
+                      style={{ backgroundColor: getColorHex(detailLead.tipificacion_color) }}
+                    >
+                      {detailLead.tipificacion_nombre}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-400">-</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Proveedor */}
+              <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-100">
+                <span className="text-sm font-medium text-gray-500">Proveedor</span>
+                <span className="col-span-2 text-sm text-gray-900">{detailLead.proveedor_nombre || '-'}</span>
+              </div>
+
+              {/* Plan */}
+              <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-100">
+                <span className="text-sm font-medium text-gray-500">Plan</span>
+                <span className="col-span-2 text-sm text-gray-900">{detailLead.plan_nombre || '-'}</span>
+              </div>
+
+              {/* Asesor */}
+              <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-100">
+                <span className="text-sm font-medium text-gray-500">Asesor</span>
+                <span className="col-span-2 text-sm text-gray-900">{detailLead.asesor_nombre || '-'}</span>
+              </div>
+
+              {/* Fecha de Registro */}
+              <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-100">
+                <span className="text-sm font-medium text-gray-500">Fecha de Registro</span>
+                <span className="col-span-2 text-sm text-gray-900">{formatDate(detailLead.created_at)}</span>
+              </div>
+
+              {/* Seccion de Perfilamiento */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3">Preguntas de Perfilamiento</h4>
+                {loadingPerfilamiento ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+                    <span className="ml-2 text-sm text-gray-500">Cargando...</span>
+                  </div>
+                ) : perfilamientoData.length > 0 ? (
+                  <div className="space-y-3">
+                    {perfilamientoData.map((item, index) => (
+                      <div key={index} className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-sm font-medium text-gray-700">{item.pregunta}</p>
+                        <p className="text-sm text-gray-900 mt-1">{item.respuesta || '-'}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-400 italic py-2">Sin respuestas de perfilamiento</p>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 p-4 border-t sticky bottom-0 bg-white">
+              <button
+                onClick={() => {
+                  setShowDetailModal(false);
+                  setDetailLead(null);
+                }}
+                className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                Cerrar
+              </button>
+              <button
+                onClick={() => {
+                  setShowDetailModal(false);
+                  handleOpenEditModal(detailLead);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                <span>Editar</span>
               </button>
             </div>
           </div>
