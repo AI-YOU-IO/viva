@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiClient } from '@/lib/api';
+import useChatWebSocket from '@/hooks/useChatWebSocket';
 
 const CONTACTS_PER_PAGE = 20;
 const SEARCH_DEBOUNCE_MS = 500;
@@ -63,6 +64,44 @@ export default function ConversacionesPage() {
   // Ref para el contenedor de mensajes y el final de mensajes
   const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
+
+  // Callback para manejar nuevos mensajes entrantes por WebSocket
+  const handleNuevoMensaje = useCallback((mensaje) => {
+    // Solo agregar si es del chat seleccionado
+    if (selectedChat && mensaje.id_contacto === selectedChat.id) {
+      const newMsg = {
+        id: mensaje.id || Date.now(),
+        type: mensaje.direccion === 'in' ? 'client' : 'ai',
+        text: mensaje.contenido || '',
+        file: mensaje.contenido_archivo || null,
+        timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+      };
+      setChatMessages(prev => [...prev, newMsg]);
+    }
+
+    // Actualizar contador de no leidos en la lista
+    if (!selectedChat || mensaje.id_contacto !== selectedChat.id) {
+      setContactos(prev => prev.map(c =>
+        c.id === mensaje.id_contacto
+          ? { ...c, mensajes_no_leidos: (c.mensajes_no_leidos || 0) + 1 }
+          : c
+      ));
+    }
+  }, [selectedChat]);
+
+  // Callback para confirmar mensaje enviado
+  const handleMensajeEnviado = useCallback((data) => {
+    console.log('Mensaje enviado confirmado:', data);
+  }, []);
+
+  // Hook de WebSocket
+  const {
+    isConnected: wsConnected,
+    enviando: wsEnviando,
+    enviarMensaje: wsEnviarMensaje,
+    error: wsError,
+    connectionStatus
+  } = useChatWebSocket(selectedChat?.id, handleNuevoMensaje, handleMensajeEnviado);
 
   // Funcion para hacer scroll al final
   const scrollToBottom = () => {
@@ -363,28 +402,41 @@ export default function ConversacionesPage() {
     }
   };
 
-  // Enviar mensaje
+  // Enviar mensaje (usa WebSocket si esta conectado, sino API)
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedChat || sendingMessage) return;
+    if (!newMessage.trim() || !selectedChat || sendingMessage || wsEnviando) return;
 
     setSendingMessage(true);
     const messageContent = newMessage.trim();
 
     try {
-      await apiClient.post(`/crm/contacto/${selectedChat.id}/mensajes`, {
-        contenido: messageContent
-      });
+      let success = false;
 
-      // Agregar mensaje al chat local
-      const newMsg = {
-        id: Date.now(),
-        type: 'ai',
-        text: messageContent,
-        timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-      };
-      setChatMessages(prev => [...prev, newMsg]);
-      setNewMessage('');
+      // Intentar enviar por WebSocket primero
+      if (wsConnected) {
+        success = await wsEnviarMensaje(messageContent, selectedChat.celular);
+      }
+
+      // Si WebSocket falla o no esta conectado, usar API
+      if (!success) {
+        await apiClient.post(`/crm/contacto/${selectedChat.id}/mensajes`, {
+          contenido: messageContent
+        });
+        success = true;
+      }
+
+      if (success) {
+        // Agregar mensaje al chat local
+        const newMsg = {
+          id: Date.now(),
+          type: 'ai',
+          text: messageContent,
+          timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        };
+        setChatMessages(prev => [...prev, newMsg]);
+        setNewMessage('');
+      }
     } catch (err) {
       console.error('Error al enviar mensaje:', err);
       alert('Error al enviar el mensaje');
@@ -785,6 +837,23 @@ export default function ConversacionesPage() {
                 </div>
               </div>
               <div className="flex items-center space-x-2">
+                {/* Indicador de estado WebSocket */}
+                <div
+                  className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
+                    wsConnected
+                      ? 'bg-green-100 text-green-700'
+                      : wsError
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-yellow-100 text-yellow-700'
+                  }`}
+                  title={wsError ? wsError.message : connectionStatus}
+                >
+                  <div className={`w-2 h-2 rounded-full ${
+                    wsConnected ? 'bg-green-500' : wsError ? 'bg-red-500' : 'bg-yellow-500 animate-pulse'
+                  }`} />
+                  <span>{connectionStatus}</span>
+                </div>
+
                 {/* Boton Toggle Bot */}
                 <button
                   onClick={handleToggleBot}
