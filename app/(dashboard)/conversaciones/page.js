@@ -21,9 +21,8 @@ const formatRelativeTime = (dateString) => {
   if (diffMins < 60) return `Hace ${diffMins}m`;
   if (diffHours < 24) return `Hace ${diffHours}h`;
   if (diffDays < 7) return `Hace ${diffDays}d`;
-  return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+  return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', timeZone: "America/Lima" });
 };
-
 export default function ConversacionesPage() {
   const [contactos, setContactos] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
@@ -83,7 +82,7 @@ export default function ConversacionesPage() {
         type: mensaje.direccion === 'in' ? 'client' : 'ai',
         text: mensaje.contenido || '',
         file: mensaje.contenido_archivo || null,
-        timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+        timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: "America/Lima" })
       };
       setChatMessages(prev => [...prev, newMsg]);
     }
@@ -387,7 +386,7 @@ export default function ConversacionesPage() {
         text: msg.contenido || '',
         file: msg.contenido_archivo || null,
         timestamp: msg.fecha_registro
-          ? new Date(msg.fecha_registro).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+          ? new Date(msg.fecha_registro + "Z").toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: "America/Lima" })
           : ''
       }));
 
@@ -447,7 +446,7 @@ export default function ConversacionesPage() {
           id: Date.now(),
           type: 'ai',
           text: messageContent,
-          timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+          timestamp: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: "America/Lima" })
         };
         setChatMessages(prev => [...prev, newMsg]);
         setNewMessage('');
