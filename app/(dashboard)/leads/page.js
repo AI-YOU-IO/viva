@@ -52,6 +52,7 @@ export default function LeadsPage() {
   const [dateTo, setDateTo] = useState('');
   const [selectedEstado, setSelectedEstado] = useState('');
   const [selectedTipificacion, setSelectedTipificacion] = useState('');
+  const [selectedTipificacionAsesor, setSelectedTipificacionAsesor] = useState('');
   const [selectedAsesorFilter, setSelectedAsesorFilter] = useState('');
   const [asesoresFilter, setAsesoresFilter] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -241,10 +242,13 @@ export default function LeadsPage() {
     // Filtro de tipificación
     const matchesTipificacion = !selectedTipificacion || lead.id_tipificacion === parseInt(selectedTipificacion);
 
+    // Filtro de tipificación asesor
+    const matchesTipificacionAsesor = !selectedTipificacionAsesor || lead.id_tipificacion_asesor === parseInt(selectedTipificacionAsesor);
+
     // Filtro de asesor
     const matchesAsesor = !selectedAsesorFilter || lead.id_asesor === parseInt(selectedAsesorFilter);
 
-    return matchesSearch && matchesDate && matchesEstado && matchesTipificacion && matchesAsesor;
+    return matchesSearch && matchesDate && matchesEstado && matchesTipificacion && matchesTipificacionAsesor && matchesAsesor;
   });
 
   const formatDate = (dateString) => {
@@ -273,6 +277,7 @@ export default function LeadsPage() {
     setDateTo('');
     setSelectedEstado('');
     setSelectedTipificacion('');
+    setSelectedTipificacionAsesor('');
     setSelectedAsesorFilter('');
     setCurrentPage(1);
   };
@@ -338,9 +343,9 @@ export default function LeadsPage() {
   // Resetear página cuando cambian los filtros
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, dateRange, dateFrom, dateTo, selectedEstado, selectedTipificacion, selectedAsesorFilter]);
+  }, [searchTerm, dateRange, dateFrom, dateTo, selectedEstado, selectedTipificacion, selectedTipificacionAsesor, selectedAsesorFilter]);
 
-  const hasActiveFilters = searchTerm || dateRange !== 'all' || selectedEstado || selectedTipificacion || selectedAsesorFilter;
+  const hasActiveFilters = searchTerm || dateRange !== 'all' || selectedEstado || selectedTipificacion || selectedTipificacionAsesor || selectedAsesorFilter;
 
   const handleExportExcel = () => {
     const dataToExport = filteredLeads.map(lead => ({
@@ -523,6 +528,23 @@ export default function LeadsPage() {
             </select>
           </div>
 
+          {/* Filtro de Tipificación Asesor */}
+          <div className="min-w-[150px]">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tipif. Asesor</label>
+            <select
+              value={selectedTipificacionAsesor}
+              onChange={(e) => setSelectedTipificacionAsesor(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+            >
+              <option value="">Todas</option>
+              {tipificaciones.map((tip) => (
+                <option key={tip.id} value={tip.id}>
+                  {tip.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Filtro de Asesor - Solo para rol 1 y 2 */}
           {canFilterByAsesor && (
             <div className="min-w-[150px]">
@@ -645,6 +667,7 @@ export default function LeadsPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proveedor</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipificacion</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipificación Asesor</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asesor</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
@@ -706,6 +729,20 @@ export default function LeadsPage() {
                         }}
                       >
                         {lead.tipificacion_nombre}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {lead.tipificacion_asesor_nombre ? (
+                      <span
+                        className="px-3 py-1 text-xs font-semibold rounded-full text-white"
+                        style={{
+                          backgroundColor: getColorHex(lead.tipificacion_asesor_color)
+                        }}
+                      >
+                        {lead.tipificacion_asesor_nombre}
                       </span>
                     ) : (
                       <span className="text-gray-400">-</span>
@@ -990,8 +1027,8 @@ export default function LeadsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipificacion</label>
                   <select
                     value={editingLead.id_tipificacion || ''}
-                    onChange={(e) => handleEditChange('id_tipificacion', e.target.value ? parseInt(e.target.value) : null)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed text-gray-500"
                   >
                     <option value="">-- Seleccionar --</option>
                     {tipificaciones.map((tip) => (
@@ -1001,6 +1038,23 @@ export default function LeadsPage() {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Tipificacion Asesor */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipificacion Asesor</label>
+                <select
+                  value={editingLead.id_tipificacion_asesor || ''}
+                  onChange={(e) => handleEditChange('id_tipificacion_asesor', e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">-- Seleccionar --</option>
+                  {tipificaciones.map((tip) => (
+                    <option key={tip.id} value={tip.id}>
+                      {tip.nombre}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Proveedor y Plan en una fila */}
@@ -1160,6 +1214,23 @@ export default function LeadsPage() {
                       style={{ backgroundColor: getColorHex(detailLead.tipificacion_color) }}
                     >
                       {detailLead.tipificacion_nombre}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-400">-</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Tipificacion Asesor */}
+              <div className="grid grid-cols-3 gap-4 py-2 border-b border-gray-100">
+                <span className="text-sm font-medium text-gray-500">Tipificacion Asesor</span>
+                <div className="col-span-2">
+                  {detailLead.tipificacion_asesor_nombre ? (
+                    <span
+                      className="px-3 py-1 text-xs font-semibold rounded-full text-white"
+                      style={{ backgroundColor: getColorHex(detailLead.tipificacion_asesor_color) }}
+                    >
+                      {detailLead.tipificacion_asesor_nombre}
                     </span>
                   ) : (
                     <span className="text-sm text-gray-400">-</span>
