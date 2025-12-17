@@ -21,17 +21,19 @@ export default function TipificacionesPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingTipificacion, setEditingTipificacion] = useState(null);
-  const [formData, setFormData] = useState({
-    nombre: '',
-    definicion: '',
-    orden: 0,
-    color: '#3B82F6'
-  });
   const [draggedItem, setDraggedItem] = useState(null);
   const [dragOverItem, setDragOverItem] = useState(null);
   const [savingOrder, setSavingOrder] = useState(false);
   const [isAsesor, setIsAsesor] = useState(false);
   const [isBot, setIsBot] = useState(false);
+  const [formData, setFormData] = useState({
+    nombre: '',
+    definicion: '',
+    orden: 0,
+    color: '#3B82F6',
+    flag_asesor: isAsesor,
+    flag_bot: isBot
+  });
 
   useEffect(() => {
     loadData();
@@ -392,22 +394,22 @@ export default function TipificacionesPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Habilitar para: </label>
                 <div className='flex flex-col gap-5 py-4'>
-                  <div class="inline-flex items-center">
-                    <label class="relative flex items-center cursor-pointer" for="asesor">
-                      <input name="framework" type="radio" onClick={handleSelection} class="peer h-5 w-5 cursor-pointer appearance-none rounded-full border border-slate-300 checked:border-slate-400 transition-all" id="asesor"/>
-                      <span class="absolute bg-slate-800 w-3 h-3 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                  <div className="inline-flex items-center">
+                    <label className="relative flex items-center cursor-pointer" for="asesor">
+                      <input name="framework" type="radio" onClick={handleSelection} className="peer h-5 w-5 cursor-pointer appearance-none rounded-full border border-slate-300 checked:border-slate-400 transition-all" id="asesor"/>
+                      <span className="absolute bg-slate-800 w-3 h-3 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                       </span>
                     </label>
-                    <label class="ml-2 text-slate-600 cursor-pointer text-sm" for="asesor">Asesor</label>
+                    <label className="ml-2 text-slate-600 cursor-pointer text-sm" for="asesor">Asesor</label>
                   </div>
                 
-                  <div class="inline-flex items-center">
-                    <label class="relative flex items-center cursor-pointer" for="bot">
-                      <input name="framework" type="radio" onClick={handleSelection} class="peer h-5 w-5 cursor-pointer appearance-none rounded-full border border-slate-300 checked:border-slate-400 transition-all" id="bot"/>
-                      <span class="absolute bg-slate-800 w-3 h-3 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                  <div className="inline-flex items-center">
+                    <label className="relative flex items-center cursor-pointer" for="bot">
+                      <input name="framework" type="radio" onClick={handleSelection} className="peer h-5 w-5 cursor-pointer appearance-none rounded-full border border-slate-300 checked:border-slate-400 transition-all" id="bot"/>
+                      <span className="absolute bg-slate-800 w-3 h-3 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                       </span>
                     </label>
-                    <label class="ml-2 text-slate-600 cursor-pointer text-sm" for="bot">Bot</label>
+                    <label className="ml-2 text-slate-600 cursor-pointer text-sm" for="bot">Bot</label>
                   </div>
                 </div>
               </div>
