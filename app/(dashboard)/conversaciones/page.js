@@ -47,6 +47,7 @@ export default function ConversacionesPage() {
   const [tipificaciones, setTipificaciones] = useState([]);
   const [selectedEstado, setSelectedEstado] = useState('');
   const [selectedTipificacion, setSelectedTipificacion] = useState('');
+  const [selectedTipificacionAsesor, setSelectedTipificacionAsesor] = useState('');
 
   // Estados para menu y edicion de prospecto
   const [showMenu, setShowMenu] = useState(false);
@@ -134,15 +135,16 @@ export default function ConversacionesPage() {
   }, [chatMessages, loadingMessages]);
 
   // Construir query params para filtros
-  const buildFilterParams = (estadoId, tipificacionId) => {
+  const buildFilterParams = (estadoId, tipificacionId, tipificacionAsesorId) => {
     const params = new URLSearchParams();
     if (estadoId) params.append('id_estado', estadoId);
     if (tipificacionId) params.append('id_tipificacion', tipificacionId);
+    if (tipificacionAsesorId) params.append('id_tipificacion_asesor', tipificacionAsesorId);
     return params.toString() ? `?${params.toString()}` : '';
   };
 
   // Cargar datos desde la API
-  const loadConversations = async (currentOffset = 0, append = false, estadoId = selectedEstado, tipificacionId = selectedTipificacion) => {
+  const loadConversations = async (currentOffset = 0, append = false, estadoId = selectedEstado, tipificacionId = selectedTipificacion, tipificacionAsesorId = selectedTipificacionAsesor) => {
     try {
       if (append) {
         setLoadingMore(true);
@@ -151,7 +153,7 @@ export default function ConversacionesPage() {
       }
       setError(null);
 
-      const filterParams = buildFilterParams(estadoId, tipificacionId);
+      const filterParams = buildFilterParams(estadoId, tipificacionId, tipificacionAsesorId);
       const response = await apiClient.get(`/crm/contactos/${currentOffset}${filterParams}`);
 
       const contactosArray = response.data || [];
@@ -258,7 +260,7 @@ export default function ConversacionesPage() {
   };
 
   // Buscar contactos
-  const searchContacts = async (query, currentOffset = 0, append = false, estadoId = selectedEstado, tipificacionId = selectedTipificacion) => {
+  const searchContacts = async (query, currentOffset = 0, append = false, estadoId = selectedEstado, tipificacionId = selectedTipificacion, tipificacionAsesorId = selectedTipificacionAsesor) => {
     try {
       if (append) {
         setLoadingMore(true);
@@ -270,6 +272,7 @@ export default function ConversacionesPage() {
       let url = `/crm/contactos/buscar/${encodeURIComponent(query)}?offset=${currentOffset}`;
       if (estadoId) url += `&id_estado=${estadoId}`;
       if (tipificacionId) url += `&id_tipificacion=${tipificacionId}`;
+      if (tipificacionAsesorId) url += `&id_tipificacion_asesor=${tipificacionAsesorId}`;
 
       const response = await apiClient.get(url);
 
@@ -335,17 +338,20 @@ export default function ConversacionesPage() {
     setOffset(0);
     const newEstado = filterType === 'estado' ? value : selectedEstado;
     const newTipificacion = filterType === 'tipificacion' ? value : selectedTipificacion;
+    const newTipificacionAsesor = filterType === 'tipificacionAsesor' ? value : selectedTipificacionAsesor;
 
     if (filterType === 'estado') {
       setSelectedEstado(value);
-    } else {
+    } else if (filterType === 'tipificacion') {
       setSelectedTipificacion(value);
+    } else if (filterType === 'tipificacionAsesor') {
+      setSelectedTipificacionAsesor(value);
     }
 
     if (searchQuery.trim()) {
-      searchContacts(searchQuery.trim(), 0, false, newEstado, newTipificacion);
+      searchContacts(searchQuery.trim(), 0, false, newEstado, newTipificacion, newTipificacionAsesor);
     } else {
-      loadConversations(0, false, newEstado, newTipificacion);
+      loadConversations(0, false, newEstado, newTipificacion, newTipificacionAsesor);
     }
   };
 
@@ -353,12 +359,13 @@ export default function ConversacionesPage() {
   const clearFilters = () => {
     setSelectedEstado('');
     setSelectedTipificacion('');
+    setSelectedTipificacionAsesor('');
     setSearchQuery('');
     setOffset(0);
     if (searchTimeout) {
       clearTimeout(searchTimeout);
     }
-    loadConversations(0, false, '', '');
+    loadConversations(0, false, '', '', '');
   };
 
   // Cargar mensajes del chat seleccionado desde tabla mensaje
@@ -661,10 +668,22 @@ export default function ConversacionesPage() {
                   </option>
                 ))}
               </select>
+              <select
+                value={selectedTipificacionAsesor}
+                onChange={(e) => handleFilterChange('tipificacionAsesor', e.target.value)}
+                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white truncate"
+              >
+                <option value="">Tipif. Asesor: Todas</option>
+                {tipificaciones.map((tipificacion) => (
+                  <option key={tipificacion.id} value={tipificacion.id}>
+                    {tipificacion.nombre}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Boton limpiar filtros */}
-            {(selectedEstado || selectedTipificacion || searchQuery) && (
+            {(selectedEstado || selectedTipificacion || selectedTipificacionAsesor || searchQuery) && (
               <button
                 onClick={clearFilters}
                 className="w-full mt-2 px-2 py-1.5 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors flex items-center justify-center gap-1"
