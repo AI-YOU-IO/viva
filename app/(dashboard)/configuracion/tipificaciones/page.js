@@ -54,15 +54,19 @@ export default function TipificacionesPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      console.log(`Asesor: ${isAsesor}, Bot: ${isBot}`);
+      console.log(formData);
       if (editingTipificacion) {
-        await apiClient.put(`/crm/tipificaciones/${editingTipificacion.id}`, formData);
+        await apiClient.put(`/crm/tipificaciones/${editingTipificacion.id}`, {...formData, flag_asesor: isAsesor, flag_bot: isBot});
       } else {
         // Asignar el siguiente orden disponible
         const maxOrden = tipificaciones.length > 0
           ? Math.max(...tipificaciones.map(t => t.orden || 0))
           : -1;
-        await apiClient.post('/crm/tipificaciones', { ...formData, orden: maxOrden + 1 });
+        await apiClient.post('/crm/tipificaciones', { ...formData, orden: maxOrden + 1, flag_asesor: isAsesor, flag_bot: isBot });
       }
+      setIsAsesor(false);
+      setIsBot(false);
       setShowModal(false);
       setEditingTipificacion(null);
       resetForm();
@@ -75,11 +79,15 @@ export default function TipificacionesPage() {
 
   const handleEdit = (tipificacion) => {
     setEditingTipificacion(tipificacion);
+    setIsAsesor(tipificacion.flag_asesor || false);
+    setIsBot(tipificacion.flag_bot || false);
     setFormData({
       nombre: tipificacion.nombre || '',
       definicion: tipificacion.definicion || '',
       orden: tipificacion.orden || 0,
-      color: tipificacion.color || '#3B82F6'
+      color: tipificacion.color || '#3B82F6',
+      flag_asesor: tipificacion.flag_asesor || false,
+      flag_bot: tipificacion.flag_bot || false
     });
     setShowModal(true);
   };
@@ -96,14 +104,11 @@ export default function TipificacionesPage() {
     }
   };
 
-  const handleSelection = (e) => {
+  const handleCheckboxChange = (e) => {
     if (e.target.id === "asesor") {
-      setIsAsesor(true);
-      setIsBot(false);
-    }
-    else {
-      setIsAsesor(false);
-      setIsBot(true);
+      setIsAsesor(e.target.checked);
+    } else if (e.target.id === "bot") {
+      setIsBot(e.target.checked);
     }
   }
 
@@ -393,23 +398,31 @@ export default function TipificacionesPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Habilitar para: </label>
-                <div className='flex flex-col gap-5 py-4'>
+                <div className='flex flex-col gap-3 py-4'>
                   <div className="inline-flex items-center">
-                    <label className="relative flex items-center cursor-pointer" for="asesor">
-                      <input name="framework" type="radio" onClick={handleSelection} className="peer h-5 w-5 cursor-pointer appearance-none rounded-full border border-slate-300 checked:border-slate-400 transition-all" id="asesor"/>
-                      <span className="absolute bg-slate-800 w-3 h-3 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                      </span>
+                    <label className="relative flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isAsesor}
+                        onChange={handleCheckboxChange}
+                        className="h-5 w-5 cursor-pointer rounded border border-slate-300 checked:bg-slate-800 checked:border-slate-800 transition-all"
+                        id="asesor"
+                      />
                     </label>
-                    <label className="ml-2 text-slate-600 cursor-pointer text-sm" for="asesor">Asesor</label>
+                    <label htmlFor="asesor" className="ml-2 text-slate-600 cursor-pointer text-sm">Asesor</label>
                   </div>
-                
+
                   <div className="inline-flex items-center">
-                    <label className="relative flex items-center cursor-pointer" for="bot">
-                      <input name="framework" type="radio" onClick={handleSelection} className="peer h-5 w-5 cursor-pointer appearance-none rounded-full border border-slate-300 checked:border-slate-400 transition-all" id="bot"/>
-                      <span className="absolute bg-slate-800 w-3 h-3 rounded-full opacity-0 peer-checked:opacity-100 transition-opacity duration-200 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                      </span>
+                    <label className="relative flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isBot}
+                        onChange={handleCheckboxChange}
+                        className="h-5 w-5 cursor-pointer rounded border border-slate-300 checked:bg-slate-800 checked:border-slate-800 transition-all"
+                        id="bot"
+                      />
                     </label>
-                    <label className="ml-2 text-slate-600 cursor-pointer text-sm" for="bot">Bot</label>
+                    <label htmlFor="bot" className="ml-2 text-slate-600 cursor-pointer text-sm">Bot</label>
                   </div>
                 </div>
               </div>
