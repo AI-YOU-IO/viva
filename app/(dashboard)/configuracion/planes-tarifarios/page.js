@@ -23,7 +23,8 @@ export default function PlanesTarifariosPage() {
     precio_promocional: '',
     descripcion: '',
     principal: 1,
-    imagen_url: ''
+    imagen_url: '',
+    estado_registro: 1
   });
   const [selectedFile, setSelectedFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
@@ -36,7 +37,8 @@ export default function PlanesTarifariosPage() {
     try {
       setLoading(true);
       const response = await apiClient.get('/crm/planes-tarifarios');
-      setPlanes(response.data || []);
+      const planesValidos = response?.data.filter((plan) => plan.estado_registro == 1);
+      setPlanes(planesValidos || []);
     } catch (error) {
       console.error('Error al cargar planes:', error);
     } finally {
