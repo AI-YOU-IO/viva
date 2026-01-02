@@ -71,6 +71,7 @@ export default function LeadsPage() {
   const [detailLead, setDetailLead] = useState(null);
   const [perfilamientoData, setPerfilamientoData] = useState([]);
   const [loadingPerfilamiento, setLoadingPerfilamiento] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Verificar si el usuario puede filtrar por asesor (rol 1 o 2)
   const canFilterByAsesor = session?.user?.id_rol === 1 || session?.user?.id_rol === 2;
@@ -460,14 +461,14 @@ export default function LeadsPage() {
 
       {/* Filtros */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="flex flex-wrap gap-4 items-end">
+        {/* Fila principal: Búsqueda + Botón Filtros */}
+        <div className="flex flex-wrap gap-3 items-center">
           {/* Búsqueda */}
           <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
             <div className="relative">
               <input
                 type="text"
-                placeholder="Nombre, celular o DNI..."
+                placeholder="Buscar por nombre, celular o DNI..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
@@ -478,121 +479,39 @@ export default function LeadsPage() {
             </div>
           </div>
 
-          {/* Rango de fecha */}
-          <div className="min-w-[150px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Periodo</label>
-            <select
-              value={dateRange}
-              onChange={(e) => handleDateRangeChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+          {/* Botón Filtros */}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              hasActiveFilters
+                ? 'bg-primary-50 text-primary-700 border border-primary-200'
+                : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
+            }`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <span>Filtros</span>
+            {hasActiveFilters && (
+              <span className="px-2 py-0.5 bg-primary-600 text-white text-xs rounded-full">
+                {[dateRange !== 'all', selectedEstado, selectedTipificacion, selectedTipificacionAsesor, selectedAsesorFilter].filter(Boolean).length}
+              </span>
+            )}
+            <svg
+              className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              {DATE_RANGES.map((range) => (
-                <option key={range.value} value={range.value}>
-                  {range.label}
-                </option>
-              ))}
-            </select>
-          </div>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
 
-          {/* Filtro de Estado */}
-          <div className="min-w-[150px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-            <select
-              value={selectedEstado}
-              onChange={(e) => setSelectedEstado(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">Todos</option>
-              {estados.map((estado) => (
-                <option key={estado.id} value={estado.id}>
-                  {estado.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Filtro de Tipificación */}
-          <div className="min-w-[150px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tipificacion</label>
-            <select
-              value={selectedTipificacion}
-              onChange={(e) => setSelectedTipificacion(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">Todas</option>
-              {tipificaciones.map((tip) => (
-                <option key={tip.id} value={tip.id}>
-                  {tip.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Filtro de Tipificación Asesor */}
-          <div className="min-w-[150px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tipif. Asesor</label>
-            <select
-              value={selectedTipificacionAsesor}
-              onChange={(e) => setSelectedTipificacionAsesor(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">Todas</option>
-              {tipificaciones.map((tip) => (
-                <option key={tip.id} value={tip.id}>
-                  {tip.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Filtro de Asesor - Solo para rol 1 y 2 */}
-          {canFilterByAsesor && (
-            <div className="min-w-[150px]">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Asesor</label>
-              <select
-                value={selectedAsesorFilter}
-                onChange={(e) => setSelectedAsesorFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="">Todos</option>
-                {asesoresFilter.map((asesor) => (
-                  <option key={asesor.id} value={asesor.id}>
-                    {asesor.username}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Fechas personalizadas */}
-          {dateRange === 'custom' && (
-            <>
-              <div className="min-w-[150px]">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                />
-              </div>
-              <div className="min-w-[150px]">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                />
-              </div>
-            </>
-          )}
-
-          {/* Botón limpiar */}
+          {/* Botón limpiar - visible solo si hay filtros activos */}
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 flex items-center space-x-1"
+              className="px-3 py-2 text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 flex items-center gap-1 text-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -601,6 +520,123 @@ export default function LeadsPage() {
             </button>
           )}
         </div>
+
+        {/* Panel de Filtros Desplegable */}
+        {showFilters && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {/* Rango de fecha */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Periodo</label>
+                <select
+                  value={dateRange}
+                  onChange={(e) => handleDateRangeChange(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                >
+                  {DATE_RANGES.map((range) => (
+                    <option key={range.value} value={range.value}>
+                      {range.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filtro de Estado */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Estado</label>
+                <select
+                  value={selectedEstado}
+                  onChange={(e) => setSelectedEstado(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="">Todos</option>
+                  {estados.map((estado) => (
+                    <option key={estado.id} value={estado.id}>
+                      {estado.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filtro de Tipificación */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Tipificacion</label>
+                <select
+                  value={selectedTipificacion}
+                  onChange={(e) => setSelectedTipificacion(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="">Todas</option>
+                  {tipificaciones.map((tip) => (
+                    <option key={tip.id} value={tip.id}>
+                      {tip.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filtro de Tipificación Asesor */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Tipif. Asesor</label>
+                <select
+                  value={selectedTipificacionAsesor}
+                  onChange={(e) => setSelectedTipificacionAsesor(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="">Todas</option>
+                  {tipificaciones.map((tip) => (
+                    <option key={tip.id} value={tip.id}>
+                      {tip.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filtro de Asesor - Solo para rol 1 y 2 */}
+              {canFilterByAsesor && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Asesor</label>
+                  <select
+                    value={selectedAsesorFilter}
+                    onChange={(e) => setSelectedAsesorFilter(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    <option value="">Todos</option>
+                    {asesoresFilter.map((asesor) => (
+                      <option key={asesor.id} value={asesor.id}>
+                        {asesor.username}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Fechas personalizadas */}
+              {dateRange === 'custom' && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Desde</label>
+                    <input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Hasta</label>
+                    <input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Indicador de filtros activos */}
         {hasActiveFilters && (
