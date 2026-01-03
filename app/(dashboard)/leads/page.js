@@ -103,7 +103,7 @@ export default function LeadsPage() {
         apiClient.get('/crm/estados'),
         apiClient.get('/crm/tipificaciones'),
         apiClient.get('/crm/leads/proveedores'),
-        apiClient.get('/crm/leads/planes')
+        apiClient.get('/crm/leads/catalogo')
       ]);
       setLeads(leadsRes.data || []);
       setEstados(estadosRes.data || []);

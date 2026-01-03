@@ -235,7 +235,7 @@ export default function ConversacionesPage() {
 
     // Cargar planes
     try {
-      const response = await fetch(`${API_URL}/crm/leads/planes`, { headers });
+      const response = await fetch(`${API_URL}/crm/leads/catalogo`, { headers });
       if (response.ok) {
         const data = await response.json();
         setPlanes(data.data || []);
