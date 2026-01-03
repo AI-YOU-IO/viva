@@ -53,6 +53,8 @@ export default function LeadsPage() {
   const [selectedEstado, setSelectedEstado] = useState('');
   const [selectedTipificacion, setSelectedTipificacion] = useState('');
   const [selectedTipificacionAsesor, setSelectedTipificacionAsesor] = useState('');
+  const [nivelesTipBot, setNivelesTipBot] = useState([]);
+  const [nivelesTipAsesor, setNivelesTipAsesor] = useState([]);
   const [selectedAsesorFilter, setSelectedAsesorFilter] = useState('');
   const [asesoresFilter, setAsesoresFilter] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -116,6 +118,77 @@ export default function LeadsPage() {
       setLoading(false);
     }
   };
+
+  // Obtener tipificaciones padre (las que no tienen padre) - solo flag_bot
+  const tipificacionesPadreBot = tipificaciones.filter(t => !t.id_padre && t.flag_bot === 1);
+
+  // Obtener tipificaciones padre - solo flag_asesor
+  const tipificacionesPadreAsesor = tipificaciones.filter(t => !t.id_padre && t.flag_asesor === 1);
+
+  // Obtener hijos de un padre para bot
+  const getHijosBot = (idPadre) => {
+    return tipificaciones.filter(t => t.id_padre === idPadre && t.flag_bot === 1);
+  };
+
+  // Obtener hijos de un padre para asesor
+  const getHijosAsesor = (idPadre) => {
+    return tipificaciones.filter(t => t.id_padre === idPadre && t.flag_asesor === 1);
+  };
+
+  // Construir niveles para tipificacion bot
+  const construirNivelesBot = () => {
+    const niveles = [{ opciones: tipificacionesPadreBot, seleccionado: nivelesTipBot[0] || null }];
+    for (let i = 0; i < nivelesTipBot.length; i++) {
+      const hijos = getHijosBot(nivelesTipBot[i]);
+      if (hijos.length > 0) {
+        niveles.push({ opciones: hijos, seleccionado: nivelesTipBot[i + 1] || null });
+      } else {
+        break;
+      }
+    }
+    return niveles;
+  };
+
+  // Construir niveles para tipificacion asesor
+  const construirNivelesAsesor = () => {
+    const niveles = [{ opciones: tipificacionesPadreAsesor, seleccionado: nivelesTipAsesor[0] || null }];
+    for (let i = 0; i < nivelesTipAsesor.length; i++) {
+      const hijos = getHijosAsesor(nivelesTipAsesor[i]);
+      if (hijos.length > 0) {
+        niveles.push({ opciones: hijos, seleccionado: nivelesTipAsesor[i + 1] || null });
+      } else {
+        break;
+      }
+    }
+    return niveles;
+  };
+
+  // Manejar cambio de nivel para tipificacion bot
+  const handleNivelBotChange = (nivelIndex, value) => {
+    const nuevoValor = value ? parseInt(value) : null;
+    const nuevosNiveles = nivelesTipBot.slice(0, nivelIndex);
+    if (nuevoValor) {
+      nuevosNiveles.push(nuevoValor);
+    }
+    setNivelesTipBot(nuevosNiveles);
+    const ultimoNivel = nuevosNiveles.length > 0 ? nuevosNiveles[nuevosNiveles.length - 1] : null;
+    setSelectedTipificacion(ultimoNivel ? String(ultimoNivel) : '');
+  };
+
+  // Manejar cambio de nivel para tipificacion asesor
+  const handleNivelAsesorChange = (nivelIndex, value) => {
+    const nuevoValor = value ? parseInt(value) : null;
+    const nuevosNiveles = nivelesTipAsesor.slice(0, nivelIndex);
+    if (nuevoValor) {
+      nuevosNiveles.push(nuevoValor);
+    }
+    setNivelesTipAsesor(nuevosNiveles);
+    const ultimoNivel = nuevosNiveles.length > 0 ? nuevosNiveles[nuevosNiveles.length - 1] : null;
+    setSelectedTipificacionAsesor(ultimoNivel ? String(ultimoNivel) : '');
+  };
+
+  const nivelesDropdownBot = construirNivelesBot();
+  const nivelesDropdownAsesor = construirNivelesAsesor();
 
   const handleOpenDetailModal = async (lead) => {
     setDetailLead(lead);
@@ -279,6 +352,8 @@ export default function LeadsPage() {
     setSelectedEstado('');
     setSelectedTipificacion('');
     setSelectedTipificacionAsesor('');
+    setNivelesTipBot([]);
+    setNivelesTipAsesor([]);
     setSelectedAsesorFilter('');
     setCurrentPage(1);
   };
@@ -523,8 +598,9 @@ export default function LeadsPage() {
 
         {/* Panel de Filtros Desplegable */}
         {showFilters && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="mt-4 pt-4 border-t border-gray-200 space-y-4">
+            {/* Fila 1: Filtros basicos */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {/* Rango de fecha */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Periodo</label>
@@ -553,40 +629,6 @@ export default function LeadsPage() {
                   {estados.map((estado) => (
                     <option key={estado.id} value={estado.id}>
                       {estado.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Filtro de Tipificación */}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Tipificacion</label>
-                <select
-                  value={selectedTipificacion}
-                  onChange={(e) => setSelectedTipificacion(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                >
-                  <option value="">Todas</option>
-                  {tipificaciones.map((tip) => (
-                    <option key={tip.id} value={tip.id}>
-                      {tip.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Filtro de Tipificación Asesor */}
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Tipif. Asesor</label>
-                <select
-                  value={selectedTipificacionAsesor}
-                  onChange={(e) => setSelectedTipificacionAsesor(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
-                >
-                  <option value="">Todas</option>
-                  {tipificaciones.map((tip) => (
-                    <option key={tip.id} value={tip.id}>
-                      {tip.nombre}
                     </option>
                   ))}
                 </select>
@@ -634,6 +676,50 @@ export default function LeadsPage() {
                   </div>
                 </>
               )}
+            </div>
+
+            {/* Fila 2: Tipificacion Bot */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <label className="block text-xs font-medium text-gray-700 mb-2">Tipificacion Bot</label>
+              <div className="flex flex-wrap gap-2 items-center">
+                {nivelesDropdownBot.map((nivel, index) => (
+                  <div key={index} className="flex items-center gap-1">
+                    {index > 0 && <span className="text-gray-400 text-lg font-bold">&gt;</span>}
+                    <select
+                      value={nivel.seleccionado || ''}
+                      onChange={(e) => handleNivelBotChange(index, e.target.value)}
+                      className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 bg-white"
+                    >
+                      <option value="">{index === 0 ? 'Todas' : 'Seleccionar...'}</option>
+                      {nivel.opciones.map((t) => (
+                        <option key={t.id} value={t.id}>{t.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Fila 3: Tipificacion Asesor */}
+            <div className="bg-gray-50 rounded-lg p-3">
+              <label className="block text-xs font-medium text-gray-700 mb-2">Tipificacion Asesor</label>
+              <div className="flex flex-wrap gap-2 items-center">
+                {nivelesDropdownAsesor.map((nivel, index) => (
+                  <div key={index} className="flex items-center gap-1">
+                    {index > 0 && <span className="text-gray-400 text-lg font-bold">&gt;</span>}
+                    <select
+                      value={nivel.seleccionado || ''}
+                      onChange={(e) => handleNivelAsesorChange(index, e.target.value)}
+                      className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 bg-white"
+                    >
+                      <option value="">{index === 0 ? 'Todas' : 'Seleccionar...'}</option>
+                      {nivel.opciones.map((t) => (
+                        <option key={t.id} value={t.id}>{t.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

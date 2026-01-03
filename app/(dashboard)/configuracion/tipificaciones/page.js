@@ -26,14 +26,57 @@ export default function TipificacionesPage() {
   const [savingOrder, setSavingOrder] = useState(false);
   const [isAsesor, setIsAsesor] = useState(false);
   const [isBot, setIsBot] = useState(false);
+  const [nivelesSeleccionados, setNivelesSeleccionados] = useState([]);
   const [formData, setFormData] = useState({
     nombre: '',
     definicion: '',
     orden: 0,
     color: '#3B82F6',
     flag_asesor: isAsesor,
-    flag_bot: isBot
+    flag_bot: isBot,
+    id_padre: null
   });
+
+  // Obtener tipificaciones padre (las que no tienen padre)
+  const tipificacionesPadre = tipificaciones.filter(t => !t.id_padre);
+
+  // Obtener hijos de un padre específico
+  const getHijosDePadre = (idPadre) => {
+    return tipificaciones.filter(t => t.id_padre === idPadre);
+  };
+
+  // Construir los niveles de dropdowns basados en la selección
+  const construirNiveles = () => {
+    const niveles = [{ opciones: tipificacionesPadre, seleccionado: nivelesSeleccionados[0] || null }];
+
+    for (let i = 0; i < nivelesSeleccionados.length; i++) {
+      const hijos = getHijosDePadre(nivelesSeleccionados[i]);
+      if (hijos.length > 0) {
+        niveles.push({ opciones: hijos, seleccionado: nivelesSeleccionados[i + 1] || null });
+      } else {
+        break;
+      }
+    }
+    return niveles;
+  };
+
+  const nivelesDropdown = construirNiveles();
+
+  // Manejar cambio de nivel
+  const handleNivelChange = (nivelIndex, value) => {
+    const nuevoValor = value ? parseInt(value) : null;
+    const nuevosNiveles = nivelesSeleccionados.slice(0, nivelIndex);
+
+    if (nuevoValor) {
+      nuevosNiveles.push(nuevoValor);
+    }
+
+    setNivelesSeleccionados(nuevosNiveles);
+
+    // El id_padre es el último nivel seleccionado
+    const ultimoNivel = nuevosNiveles.length > 0 ? nuevosNiveles[nuevosNiveles.length - 1] : null;
+    setFormData(prev => ({ ...prev, id_padre: ultimoNivel }));
+  };
 
   useEffect(() => {
     loadData();
@@ -81,13 +124,27 @@ export default function TipificacionesPage() {
     setEditingTipificacion(tipificacion);
     setIsAsesor(tipificacion.flag_asesor || false);
     setIsBot(tipificacion.flag_bot || false);
+
+    // Construir la cadena de niveles desde el id_padre hacia arriba
+    const niveles = [];
+    if (tipificacion.id_padre) {
+      let currentId = tipificacion.id_padre;
+      while (currentId) {
+        niveles.unshift(currentId);
+        const current = tipificaciones.find(t => t.id === currentId);
+        currentId = current?.id_padre || null;
+      }
+    }
+    setNivelesSeleccionados(niveles);
+
     setFormData({
       nombre: tipificacion.nombre || '',
       definicion: tipificacion.definicion || '',
       orden: tipificacion.orden || 0,
       color: tipificacion.color || '#3B82F6',
       flag_asesor: tipificacion.flag_asesor || false,
-      flag_bot: tipificacion.flag_bot || false
+      flag_bot: tipificacion.flag_bot || false,
+      id_padre: tipificacion.id_padre || null
     });
     setShowModal(true);
   };
@@ -117,8 +174,10 @@ export default function TipificacionesPage() {
       nombre: '',
       definicion: '',
       orden: 0,
-      color: '#3B82F6'
+      color: '#3B82F6',
+      id_padre: null
     });
+    setNivelesSeleccionados([]);
   };
 
   const openNewModal = () => {
@@ -185,7 +244,10 @@ export default function TipificacionesPage() {
           nombre: item.nombre,
           definicion: item.definicion,
           orden: index,
-          color: item.color
+          color: item.color,
+          flag_asesor: item.flag_asesor,
+          flag_bot: item.flag_bot,
+          id_padre: item.id_padre
         })
       );
       await Promise.all(promises);
@@ -218,15 +280,26 @@ export default function TipificacionesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Tipificaciones</h1>
           <p className="text-gray-600 mt-1">Arrastra para cambiar el orden de las tipificaciones</p>
         </div>
-        <button
-          onClick={openNewModal}
-          className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center space-x-2"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          <span>Nueva Tipificacion</span>
-        </button>
+        <div className="flex items-center space-x-2">
+          <Link
+            href="/configuracion/tipificaciones/arbol"
+            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 flex items-center space-x-2 border border-gray-300"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+            </svg>
+            <span>Vista Arbol</span>
+          </Link>
+          <button
+            onClick={openNewModal}
+            className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center space-x-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Nueva Tipificacion</span>
+          </button>
+        </div>
       </div>
 
       {savingOrder && (
@@ -239,10 +312,10 @@ export default function TipificacionesPage() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
           <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-500 uppercase">
-            {/* <div className="col-span-1"></div> */}
             <div className="col-span-1 text-center">#</div>
             <div className="col-span-2">Nombre</div>
-            <div className="col-span-4">Definicion</div>
+            <div className="col-span-2">Padre</div>
+            <div className="col-span-2">Definicion</div>
             <div className="col-span-1 text-center">Color</div>
             <div className="col-span-1 text-center">Asesor</div>
             <div className="col-span-1 text-center">Bot</div>
@@ -288,8 +361,18 @@ export default function TipificacionesPage() {
                 <span className="text-sm font-medium text-gray-900 truncate">{tipificacion.nombre}</span>
               </div>
 
+              {/* Padre */}
+              <div className="col-span-2">
+                <p className="text-sm text-gray-600 truncate">
+                  {tipificacion.id_padre
+                    ? tipificaciones.find(t => t.id === tipificacion.id_padre)?.nombre || '-'
+                    : <span className="text-gray-400 italic">Principal</span>
+                  }
+                </p>
+              </div>
+
               {/* Definicion */}
-              <div className="col-span-4">
+              <div className="col-span-2">
                 <p className="text-sm text-gray-600 truncate">
                   {tipificacion.definicion || <span className="text-gray-400 italic">Sin definicion</span>}
                 </p>
@@ -395,6 +478,34 @@ export default function TipificacionesPage() {
                   rows={3}
                   placeholder="Descripcion o definicion del motivo..."
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Jerarquia de Padre</label>
+                <div className="flex flex-wrap gap-2 items-center">
+                  {nivelesDropdown.map((nivel, index) => (
+                    <div key={index} className="flex items-center gap-1">
+                      {index > 0 && <span className="text-gray-400 text-lg">/</span>}
+                      <select
+                        value={nivel.seleccionado || ''}
+                        onChange={(e) => handleNivelChange(index, e.target.value)}
+                        className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 min-w-[120px]"
+                      >
+                        <option value="">{index === 0 ? 'Sin padre' : 'Seleccionar...'}</option>
+                        {nivel.opciones
+                          .filter(t => !editingTipificacion || t.id !== editingTipificacion.id)
+                          .map((t) => (
+                            <option key={t.id} value={t.id}>{t.nombre}</option>
+                          ))
+                        }
+                      </select>
+                    </div>
+                  ))}
+                </div>
+                {formData.id_padre && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Padre seleccionado: {tipificaciones.find(t => t.id === formData.id_padre)?.nombre}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Habilitar para: </label>

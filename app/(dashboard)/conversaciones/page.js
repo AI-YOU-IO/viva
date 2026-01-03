@@ -47,6 +47,8 @@ export default function ConversacionesPage() {
   const [selectedEstado, setSelectedEstado] = useState('');
   const [selectedTipificacion, setSelectedTipificacion] = useState('');
   const [selectedTipificacionAsesor, setSelectedTipificacionAsesor] = useState('');
+  const [nivelesTipBot, setNivelesTipBot] = useState([]);
+  const [nivelesTipAsesor, setNivelesTipAsesor] = useState([]);
 
   // Estados para menu y edicion de prospecto
   const [showMenu, setShowMenu] = useState(false);
@@ -362,6 +364,8 @@ export default function ConversacionesPage() {
     setSelectedEstado('');
     setSelectedTipificacion('');
     setSelectedTipificacionAsesor('');
+    setNivelesTipBot([]);
+    setNivelesTipAsesor([]);
     setSearchQuery('');
     setOffset(0);
     if (searchTimeout) {
@@ -369,6 +373,95 @@ export default function ConversacionesPage() {
     }
     loadConversations(0, false, '', '', '');
   };
+
+  // Obtener tipificaciones padre (sin padre) - solo flag_bot
+  const tipificacionesPadreBot = tipificaciones.filter(t => !t.id_padre && t.flag_bot === 1);
+
+  // Obtener tipificaciones padre - solo flag_asesor
+  const tipificacionesPadreAsesor = tipificaciones.filter(t => !t.id_padre && t.flag_asesor === 1);
+
+  // Obtener hijos de un padre para bot
+  const getHijosBot = (idPadre) => {
+    return tipificaciones.filter(t => t.id_padre === idPadre && t.flag_bot === 1);
+  };
+
+  // Obtener hijos de un padre para asesor
+  const getHijosAsesor = (idPadre) => {
+    return tipificaciones.filter(t => t.id_padre === idPadre && t.flag_asesor === 1);
+  };
+
+  // Construir niveles para tipificacion bot
+  const construirNivelesBot = () => {
+    const niveles = [{ opciones: tipificacionesPadreBot, seleccionado: nivelesTipBot[0] || null }];
+    for (let i = 0; i < nivelesTipBot.length; i++) {
+      const hijos = getHijosBot(nivelesTipBot[i]);
+      if (hijos.length > 0) {
+        niveles.push({ opciones: hijos, seleccionado: nivelesTipBot[i + 1] || null });
+      } else {
+        break;
+      }
+    }
+    return niveles;
+  };
+
+  // Construir niveles para tipificacion asesor
+  const construirNivelesAsesor = () => {
+    const niveles = [{ opciones: tipificacionesPadreAsesor, seleccionado: nivelesTipAsesor[0] || null }];
+    for (let i = 0; i < nivelesTipAsesor.length; i++) {
+      const hijos = getHijosAsesor(nivelesTipAsesor[i]);
+      if (hijos.length > 0) {
+        niveles.push({ opciones: hijos, seleccionado: nivelesTipAsesor[i + 1] || null });
+      } else {
+        break;
+      }
+    }
+    return niveles;
+  };
+
+  // Manejar cambio de nivel para tipificacion bot
+  const handleNivelBotChange = (nivelIndex, value) => {
+    const nuevoValor = value ? parseInt(value) : null;
+    const nuevosNiveles = nivelesTipBot.slice(0, nivelIndex);
+    if (nuevoValor) {
+      nuevosNiveles.push(nuevoValor);
+    }
+    setNivelesTipBot(nuevosNiveles);
+    const ultimoNivel = nuevosNiveles.length > 0 ? nuevosNiveles[nuevosNiveles.length - 1] : null;
+    const tipId = ultimoNivel ? String(ultimoNivel) : '';
+    setSelectedTipificacion(tipId);
+
+    // Aplicar filtro
+    setOffset(0);
+    if (searchQuery.trim()) {
+      searchContacts(searchQuery.trim(), 0, false, selectedEstado, tipId, selectedTipificacionAsesor);
+    } else {
+      loadConversations(0, false, selectedEstado, tipId, selectedTipificacionAsesor);
+    }
+  };
+
+  // Manejar cambio de nivel para tipificacion asesor
+  const handleNivelAsesorChange = (nivelIndex, value) => {
+    const nuevoValor = value ? parseInt(value) : null;
+    const nuevosNiveles = nivelesTipAsesor.slice(0, nivelIndex);
+    if (nuevoValor) {
+      nuevosNiveles.push(nuevoValor);
+    }
+    setNivelesTipAsesor(nuevosNiveles);
+    const ultimoNivel = nuevosNiveles.length > 0 ? nuevosNiveles[nuevosNiveles.length - 1] : null;
+    const tipId = ultimoNivel ? String(ultimoNivel) : '';
+    setSelectedTipificacionAsesor(tipId);
+
+    // Aplicar filtro
+    setOffset(0);
+    if (searchQuery.trim()) {
+      searchContacts(searchQuery.trim(), 0, false, selectedEstado, selectedTipificacion, tipId);
+    } else {
+      loadConversations(0, false, selectedEstado, selectedTipificacion, tipId);
+    }
+  };
+
+  const nivelesDropdownBot = construirNivelesBot();
+  const nivelesDropdownAsesor = construirNivelesAsesor();
 
   // Cargar mensajes del chat seleccionado desde tabla mensaje
   const handleSelectChat = async (contacto) => {
@@ -677,7 +770,8 @@ export default function ConversacionesPage() {
 
               {/* Panel de Filtros Desplegable */}
               {showFilters && (
-                <div className="mt-2 p-2 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                <div className="mt-2 p-2 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
+                  {/* Filtro de Estado */}
                   <select
                     value={selectedEstado}
                     onChange={(e) => handleFilterChange('estado', e.target.value)}
@@ -690,30 +784,50 @@ export default function ConversacionesPage() {
                       </option>
                     ))}
                   </select>
-                  <select
-                    value={selectedTipificacion}
-                    onChange={(e) => handleFilterChange('tipificacion', e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white truncate"
-                  >
-                    <option value="">Tipificacion: Todas</option>
-                    {tipificaciones.map((tipificacion) => (
-                      <option key={tipificacion.id} value={tipificacion.id}>
-                        {tipificacion.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={selectedTipificacionAsesor}
-                    onChange={(e) => handleFilterChange('tipificacionAsesor', e.target.value)}
-                    className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white truncate"
-                  >
-                    <option value="">Tipif. Asesor: Todas</option>
-                    {tipificaciones.map((tipificacion) => (
-                      <option key={tipificacion.id} value={tipificacion.id}>
-                        {tipificacion.nombre}
-                      </option>
-                    ))}
-                  </select>
+
+                  {/* Tipificacion Bot - Por niveles */}
+                  <div className="bg-white rounded-lg p-2 border border-gray-200">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Tipificacion Bot</label>
+                    <div className="flex flex-wrap gap-1 items-center">
+                      {nivelesDropdownBot.map((nivel, index) => (
+                        <div key={index} className="flex items-center gap-1">
+                          {index > 0 && <span className="text-gray-400 text-xs font-bold">&gt;</span>}
+                          <select
+                            value={nivel.seleccionado || ''}
+                            onChange={(e) => handleNivelBotChange(index, e.target.value)}
+                            className="px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                          >
+                            <option value="">{index === 0 ? 'Todas' : 'Selec...'}</option>
+                            {nivel.opciones.map((t) => (
+                              <option key={t.id} value={t.id}>{t.nombre}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tipificacion Asesor - Por niveles */}
+                  <div className="bg-white rounded-lg p-2 border border-gray-200">
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Tipificacion Asesor</label>
+                    <div className="flex flex-wrap gap-1 items-center">
+                      {nivelesDropdownAsesor.map((nivel, index) => (
+                        <div key={index} className="flex items-center gap-1">
+                          {index > 0 && <span className="text-gray-400 text-xs font-bold">&gt;</span>}
+                          <select
+                            value={nivel.seleccionado || ''}
+                            onChange={(e) => handleNivelAsesorChange(index, e.target.value)}
+                            className="px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                          >
+                            <option value="">{index === 0 ? 'Todas' : 'Selec...'}</option>
+                            {nivel.opciones.map((t) => (
+                              <option key={t.id} value={t.id}>{t.nombre}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
                   {/* Boton limpiar filtros dentro del panel */}
                   {(selectedEstado || selectedTipificacion || selectedTipificacionAsesor) && (
