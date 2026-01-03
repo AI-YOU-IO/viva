@@ -1,7 +1,7 @@
 import useWebSocket, { ReadyState } from 'react-use-websocket'
 import { useState, useCallback, useEffect, useRef } from 'react'
 
-const useChatWebSocket = (contactoId, onNuevoMensaje, onMensajeEnviado) => {
+const useChatWebSocket = (contactoId, idEmpresa, onNuevoMensaje, onMensajeEnviado) => {
     const [enviando, setEnviando] = useState(false)
     const [wsError, setWsError] = useState(null)
     const [reconnectCount, setReconnectCount] = useState(0)
@@ -10,6 +10,7 @@ const useChatWebSocket = (contactoId, onNuevoMensaje, onMensajeEnviado) => {
     const onNuevoMensajeRef = useRef(onNuevoMensaje)
     const onMensajeEnviadoRef = useRef(onMensajeEnviado)
     const contactoIdRef = useRef(contactoId)
+    const idEmpresaRef = useRef(idEmpresa)
 
     useEffect(() => {
         onNuevoMensajeRef.current = onNuevoMensaje
@@ -22,6 +23,10 @@ const useChatWebSocket = (contactoId, onNuevoMensaje, onMensajeEnviado) => {
     useEffect(() => {
         contactoIdRef.current = contactoId
     }, [contactoId])
+
+    useEffect(() => {
+        idEmpresaRef.current = idEmpresa
+    }, [idEmpresa])
 
     // Usar variable de entorno o localhost en desarrollo
     // LOCAL: 'ws://localhost:8080'
@@ -132,14 +137,15 @@ const useChatWebSocket = (contactoId, onNuevoMensaje, onMensajeEnviado) => {
 
         setEnviando(true)
         try {
-            // Formato que espera el servidor: { action, telefono, contenido, id_contacto }
+            // Formato que espera el servidor: { action, telefono, contenido, id_contacto, id_empresa }
             sendMessage(JSON.stringify({
                 action: 'enviar_mensaje',
                 telefono: telefono,
                 contenido: contenido,
-                id_contacto: contactoId
+                id_contacto: contactoId,
+                id_empresa: idEmpresa
             }))
-            console.log('WebSocket: enviar_mensaje enviado', { telefono, contenido, id_contacto: contactoId })
+            console.log('WebSocket: enviar_mensaje enviado', { telefono, contenido, id_contacto: contactoId, id_empresa: idEmpresa })
             return true
         } catch (error) {
             console.error('Error al enviar mensaje por WebSocket:', error)
@@ -147,7 +153,7 @@ const useChatWebSocket = (contactoId, onNuevoMensaje, onMensajeEnviado) => {
         } finally {
             setEnviando(false)
         }
-    }, [contactoId, sendMessage, readyState])
+    }, [contactoId, idEmpresa, sendMessage, readyState])
 
     return {
         isConnected: readyState === ReadyState.OPEN,

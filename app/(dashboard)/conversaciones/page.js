@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { apiClient } from '@/lib/api';
 import useChatWebSocket from '@/hooks/useChatWebSocket';
 
@@ -24,6 +25,7 @@ const formatRelativeTime = (dateString) => {
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', timeZone: "America/Lima" });
 };
 export default function ConversacionesPage() {
+  const { data: session } = useSession();
   const [contactos, setContactos] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -54,6 +56,7 @@ export default function ConversacionesPage() {
   const [showMenu, setShowMenu] = useState(false);
   const [showEditProspectoModal, setShowEditProspectoModal] = useState(false);
   const [editingProspecto, setEditingProspecto] = useState(null);
+  const [nivelesEditTipAsesor, setNivelesEditTipAsesor] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [planes, setPlanes] = useState([]);
   const [savingProspecto, setSavingProspecto] = useState(false);
@@ -114,7 +117,7 @@ export default function ConversacionesPage() {
     enviarMensaje: wsEnviarMensaje,
     error: wsError,
     connectionStatus
-  } = useChatWebSocket(selectedChat?.id, handleNuevoMensaje, handleMensajeEnviado);
+  } = useChatWebSocket(selectedChat?.id, session?.user?.id_empresa, handleNuevoMensaje, handleMensajeEnviado);
 
   // Funcion para hacer scroll al final
   const scrollToBottom = () => {
@@ -463,6 +466,34 @@ export default function ConversacionesPage() {
   const nivelesDropdownBot = construirNivelesBot();
   const nivelesDropdownAsesor = construirNivelesAsesor();
 
+  // Construir niveles para tipificacion asesor en modal de edicion
+  const construirNivelesEditAsesor = () => {
+    const niveles = [{ opciones: tipificacionesPadreAsesor, seleccionado: nivelesEditTipAsesor[0] || null }];
+    for (let i = 0; i < nivelesEditTipAsesor.length; i++) {
+      const hijos = getHijosAsesor(nivelesEditTipAsesor[i]);
+      if (hijos.length > 0) {
+        niveles.push({ opciones: hijos, seleccionado: nivelesEditTipAsesor[i + 1] || null });
+      } else {
+        break;
+      }
+    }
+    return niveles;
+  };
+
+  // Manejar cambio de nivel para tipificacion asesor en modal de edicion
+  const handleNivelEditAsesorChange = (nivelIndex, value) => {
+    const nuevoValor = value ? parseInt(value) : null;
+    const nuevosNiveles = nivelesEditTipAsesor.slice(0, nivelIndex);
+    if (nuevoValor) {
+      nuevosNiveles.push(nuevoValor);
+    }
+    setNivelesEditTipAsesor(nuevosNiveles);
+    const ultimoNivel = nuevosNiveles.length > 0 ? nuevosNiveles[nuevosNiveles.length - 1] : null;
+    handleEditProspectoChange('id_tipificacion_asesor', ultimoNivel);
+  };
+
+  const nivelesDropdownEditAsesor = construirNivelesEditAsesor();
+
   // Cargar mensajes del chat seleccionado desde tabla mensaje
   const handleSelectChat = async (contacto) => {
     setSelectedChat(contacto);
@@ -591,8 +622,24 @@ export default function ConversacionesPage() {
       id_estado: selectedChat.id_estado || '',
       id_provedor: selectedChat.id_provedor || '',
       id_plan: selectedChat.id_plan || '',
-      id_tipificacion: selectedChat.id_tipificacion || ''
+      id_tipificacion_asesor: selectedChat.id_tipificacion_asesor || null
     });
+    // Inicializar niveles si hay tipificacion asesor existente
+    if (selectedChat.id_tipificacion_asesor) {
+      // Construir la cadena de niveles desde el id seleccionado hasta la raiz
+      const buildNivelesFromId = (tipId) => {
+        const niveles = [];
+        let current = tipificaciones.find(t => t.id === tipId);
+        while (current) {
+          niveles.unshift(current.id);
+          current = current.id_padre ? tipificaciones.find(t => t.id === current.id_padre) : null;
+        }
+        return niveles;
+      };
+      setNivelesEditTipAsesor(buildNivelesFromId(selectedChat.id_tipificacion_asesor));
+    } else {
+      setNivelesEditTipAsesor([]);
+    }
     setShowEditProspectoModal(true);
     setShowMenu(false);
   };
@@ -632,6 +679,7 @@ export default function ConversacionesPage() {
       await apiClient.put(`/crm/leads/${editingProspecto.id}`, editingProspecto);
 
       // Actualizar el chat seleccionado con los nuevos datos
+      const tipificacionAsesor = tipificaciones.find(t => t.id == editingProspecto.id_tipificacion_asesor);
       const updatedChat = {
         ...selectedChat,
         nombre_completo: editingProspecto.nombre_completo,
@@ -641,11 +689,11 @@ export default function ConversacionesPage() {
         id_estado: editingProspecto.id_estado,
         id_provedor: editingProspecto.id_provedor,
         id_plan: editingProspecto.id_plan,
-        id_tipificacion: editingProspecto.id_tipificacion,
+        id_tipificacion_asesor: editingProspecto.id_tipificacion_asesor,
         estado_nombre: estados.find(e => e.id == editingProspecto.id_estado)?.nombre || selectedChat.estado_nombre,
         estado_color: estados.find(e => e.id == editingProspecto.id_estado)?.color || selectedChat.estado_color,
-        tipificacion_nombre: tipificaciones.find(t => t.id == editingProspecto.id_tipificacion)?.nombre || selectedChat.tipificacion_nombre,
-        tipificacion_color: tipificaciones.find(t => t.id == editingProspecto.id_tipificacion)?.color || selectedChat.tipificacion_color
+        tipificacion_nombre: tipificacionAsesor?.nombre || selectedChat.tipificacion_nombre,
+        tipificacion_color: tipificacionAsesor?.color || selectedChat.tipificacion_color
       };
 
       setSelectedChat(updatedChat);
@@ -1283,18 +1331,41 @@ export default function ConversacionesPage() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipificacion</label>
-                  <select
-                    value={editingProspecto.id_tipificacion || ''}
-                    onChange={(e) => handleEditProspectoChange('id_tipificacion', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
-                  >
-                    <option value="">Seleccionar tipificacion</option>
-                    {tipificaciones.map(tipificacion => (
-                      <option key={tipificacion.id} value={tipificacion.id}>{tipificacion.nombre}</option>
+                {/* Tipificacion Asesor - Por niveles */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipificacion Asesor</label>
+                  <div className="flex flex-wrap gap-2 items-center p-2 bg-gray-50 rounded-lg border border-gray-200">
+                    {nivelesDropdownEditAsesor.map((nivel, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        {index > 0 && <span className="text-gray-400 font-bold">&gt;</span>}
+                        <select
+                          value={nivel.seleccionado || ''}
+                          onChange={(e) => handleNivelEditAsesorChange(index, e.target.value)}
+                          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none bg-white"
+                        >
+                          <option value="">{index === 0 ? 'Seleccionar...' : 'Selec...'}</option>
+                          {nivel.opciones.map((t) => (
+                            <option key={t.id} value={t.id}>{t.nombre}</option>
+                          ))}
+                        </select>
+                      </div>
                     ))}
-                  </select>
+                    {nivelesEditTipAsesor.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNivelesEditTipAsesor([]);
+                          handleEditProspectoChange('id_tipificacion_asesor', null);
+                        }}
+                        className="ml-2 p-1 text-gray-400 hover:text-red-500 transition-colors"
+                        title="Limpiar tipificacion"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor</label>
