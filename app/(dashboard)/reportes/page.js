@@ -23,6 +23,7 @@ export default function ReportesPage() {
   const [dateRange, setDateRange] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [tipoReporte, setTipoReporte] = useState("mensajes");
 
   // Calcular fechas segun el rango seleccionado
   const getDateParams = useCallback(() => {
@@ -114,11 +115,98 @@ export default function ReportesPage() {
 
   const maxValue = funnelStages.length > 0 ? funnelStages[0].valor : 0;
 
+  const mockCampaigns = [
+    {
+      id: 1,
+      nombre: "Migracion",
+      estado: "En funcionamiento",
+      update_at: "10-01-2025",
+      reglas_activas: 1
+    }
+  ]
+
+  const mockActivas = [
+    {
+      id: 1,
+      nombre: "Migracion",
+      agentes_activos: 5,
+      agentes_libres: 10,
+      llamando: 6,
+      respuestas: 22,
+      no_atendido: 12,
+      fallidas: 1,
+      dropped: 5,
+      porcentaje: "20%"
+    },
+    {
+      id: 2,
+      nombre: "Migracion",
+      agentes_activos: 5,
+      agentes_libres: 10,
+      llamando: 6,
+      respuestas: 22,
+      no_atendido: 12,
+      fallidas: 1,
+      dropped: 5,
+      porcentaje: "20%"
+    },
+    {
+      id: 3,
+      nombre: "Migracion",
+      agentes_activos: 5,
+      agentes_libres: 10,
+      llamando: 6,
+      respuestas: 22,
+      no_atendido: 12,
+      fallidas: 1,
+      dropped: 5,
+      porcentaje: "20%"
+    },
+    {
+      id: 4,
+      nombre: "Migracion",
+      agentes_activos: 5,
+      agentes_libres: 10,
+      llamando: 6,
+      respuestas: 22,
+      no_atendido: 12,
+      fallidas: 1,
+      dropped: 5,
+      porcentaje: "20%"
+    }
+  ]
+
+  const mockLlamadas = [
+    {
+      id: 1,
+      nombre: "Migracion",
+      telefono: "992994112",
+      inicio: "00:00:10"
+    },
+    {
+      id: 2,
+      nombre: "Migracion",
+      telefono: "992114112",
+      inicio: "00:00:11"
+    },
+  ]
+
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Reportes</h1>
-        <p className="text-gray-600 mt-1">Visualiza el rendimiento del proceso de ventas</p>
+      <div className="mb-6 flex justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Reportes</h1>
+          <p className="text-gray-600 mt-1">Visualiza el rendimiento del proceso de ventas</p>
+        </div>
+        <div className='items-center flex min-w-[180px]'>
+          <select
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+            onChange={(e) => setTipoReporte(e.target.value)}
+          >
+            <option value="mensajes">Mensajes</option>
+            <option value="llamadas">Llamadas</option>
+          </select>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -202,8 +290,10 @@ export default function ReportesPage() {
           </div>
         )}
       </div>
-
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      
+      {/* Contenido de reportes - Ventas o Llamadas*/}
+      {tipoReporte == "mensajes" ? (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-gray-900">Embudo de Ventas</h2>
         </div>
@@ -308,6 +398,215 @@ export default function ReportesPage() {
           </div>
         )}
       </div>
+      ) : (
+        <div className='flex gap-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6'>
+            <div className='flex w-full flex-col gap-6'>
+              {/* Recuadro de llamadas */}
+              <div className=' flex flex-col bg-white rounded-lg shadow-sm border border-gray-200'>
+                <div className='text-white font-bold bg-primary-600 p-3'>
+                  Total de Llamadas
+                </div>
+                <div className="p-5">
+                  <div className='flex flex-row gap-6 items-center mb-5'>
+                    <h3>Llamadas hoy</h3>
+                    <div className='rounded-[5px] text-white bg-primary-600 p-2'>600</div>
+                  </div>
+                  <div className='flex flex-row justify-between'>
+                    <div className='flex flex-col gap-4'>
+                      <div className='flex flex-col'>
+                        <div className='flex items-center justify-between'>
+                          <label>Total llamadas</label>
+                          <label>100</label>
+                        </div>
+                        <div className='bg-primary-600 border border-gray-200 w-[300px] h-6'/>
+                      </div>
+                      <div className='flex flex-col'>
+                        <div className='flex items-center justify-between'>
+                          <label>Total no atendidas</label>
+                          <label>100</label>
+                        </div>
+                        <div className='bg-primary-600 border border-gray-200 w-[300px] h-6'/>
+                      </div>
+                      <div className='flex flex-col'>
+                        <div className='flex items-center justify-between'>
+                          <label>Dropped</label>
+                          <label>100</label>
+                        </div>
+                        <div className='bg-primary-600 border border-gray-200 w-[300px] h-6'/>
+                      </div>
+                      <div className='flex flex-col'>
+                        <div className='flex items-center justify-between'>
+                          <label>Agentes disponibles</label>
+                          <label>100</label>
+                        </div>
+                        <div className='bg-primary-600 border border-gray-200 w-[300px] h-6'/>
+                      </div>
+                      <div className='flex flex-col'>
+                        <div className='flex items-center justify-between'>
+                          <label>Agentes hablando</label>
+                          <label>100</label>
+                        </div>
+                        <div className='bg-primary-600 border border-gray-200 w-[300px] h-6'/>
+                      </div>
+                      <div className='flex flex-col'>
+                        <div className='flex items-center justify-between'>
+                          <label>Agentes en tipificación</label>
+                          <label>100</label>
+                        </div>
+                        <div className='bg-primary-600 border border-gray-200 w-[300px] h-6'/>
+                      </div>
+                      <div className='flex flex-col'>
+                        <div className='flex items-center justify-between'>
+                          <label>Agentes sin trabajar</label>
+                          <label>100</label>
+                        </div>
+                        <div className='bg-primary-600 border border-gray-200 w-[300px] h-6'/>
+                      </div>
+                    </div>
+                    <div className='flex flex-row justify-between gap-5'>
+                      <div className='flex flex-col gap-4'>
+                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
+                          <p>00:00:30</p>
+                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>Avg Ready Time</p>
+                        </div>
+                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
+                          <p>00:00:30</p>
+                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>Avg Talk Time</p>
+                        </div>
+                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
+                          <p>20%</p>
+                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>% atendidas</p>
+                        </div>
+                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
+                          <p>21</p>
+                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>Agentes conectados</p>
+                        </div>
+                      </div>
+                      <div className='flex flex-col gap-4'>
+                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
+                          <p>00:00:30</p>
+                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>Medio tiempo llamado</p>
+                        </div>
+                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
+                          <p>00:00:30</p>
+                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>Tiempo medio en codificación</p>
+                        </div>
+                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
+                          <p>80%</p>
+                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>% no atendidas</p>
+                        </div>
+                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
+                          <p>10</p>
+                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>Exito</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Recuadro de estado de campañas */}
+              <div className='flex flex-col bg-white rounded-lg shadow-sm border border-gray-200'>
+                <div className='text-white font-bold bg-primary-600 p-3'>
+                  Estado de campañas
+                </div>
+                <div className="p-3">
+                  <table className='min-w-full divide-y divide-gray-200'>
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaña</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado de campaña</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Última actualización de estado</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reglas activas</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {mockCampaigns.map((cam) => {
+                        return (
+                          <tr key={cam.id} className='hover:bg-gray-50'>
+                            <td className="px-6 py-4 text-sm text-gray-900">{cam.nombre}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{cam.estado}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{cam.update_at}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{cam.reglas_activas}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div className='flex w-full flex-col gap-6'>
+              {/* Recuadro de campañas activas */}
+              <div className=' flex flex-col bg-white rounded-lg shadow-sm border border-gray-200'>
+                <div className='text-white font-bold bg-primary-600 p-3'>
+                  Estado de campañas activas
+                </div>
+                <div className="p-3">
+                  <table className='min-w-full divide-y divide-gray-200'>
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaña</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agentes activos</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">agentes libres</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">llamando</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">respuestas</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">no atendidas</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">fallidas</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">dropped</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">% dropped</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {mockActivas.map((activa) => {
+                        return (
+                          <tr key={activa.id} className='hover:bg-gray-50'>
+                            <td className="px-6 py-4 text-sm text-gray-900">{activa.nombre}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{activa.agentes_activos}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{activa.agentes_libres}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{activa.llamando}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{activa.respuestas}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{activa.no_atendido}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{activa.fallidas}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{activa.dropped}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{activa.porcentaje}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              {/* Recuadro de llamadas realizadas */}
+              <div className='flex flex-col bg-white rounded-lg shadow-sm border border-gray-200'>
+                <div className='text-white font-bold bg-primary-600 p-3'>
+                  Llamadas realizadas
+                </div>
+                <div className="p-3">
+                  <table className='min-w-full table-fixed divide-y divide-gray-200'>
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaña</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telefóno</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">inicio de llamada</th>              
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {mockLlamadas.map((llamada) => {
+                        return (
+                           <tr key={llamada.id} className='hover:bg-gray-50'>
+                            <td className="px-6 py-4 text-sm text-gray-900">{llamada.nombre}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{llamada.telefono}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">{llamada.inicio}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
