@@ -226,8 +226,32 @@ export default function CampaniasPage() {
 
   // Ejecutar campania
   const handleEjecutar = async (campania) => {
-    if (!confirm(`¿Está seguro de ejecutar la campaña "${campania.nombre}"? Esto creará ejecuciones pendientes para todas las bases asignadas.`)) {
-      return;
+    if (confirm(`¿Está seguro de ejecutar la campaña "${campania.nombre}"? Esto creará ejecuciones pendientes para todas las bases asignadas.`)) {
+      try {
+        const base = await apiClient.get(`/crm/campanias/${campania.id}/bases`);
+        const numeros = await apiClient.get(`/crm/bases-numeros/${base?.data[0].id_base_numero}/detalles`);
+
+        if (numeros) {
+          numeros.foreach(async (num) => {
+            const llamada = await apiClient.post("http://vast-gpu.ai-ypu.io/api/calls/ultravox",
+              {
+                destination: num.telefono,
+                systemPrompt: "Eres un asistente que le gusta responder consultas de las personas de manera breve",
+                greeting: "Hola buenos días, le habla María de atención al cliente. ¿Cómo se encuentra el día de hoy?"
+              }
+            )
+            if (llamada?.data.success) {
+              console.log(`Número ${num.telefono} realizado con exito`);
+            }
+            else {
+              console.log(`Error al llamar al número ${num.telefono}`);
+            }
+          });
+        }
+      }
+      catch (err) {
+        console.error("Error al realizar las llamadas: ", err);
+      }
     }
 
     setEjecutando(true);
@@ -262,7 +286,7 @@ export default function CampaniasPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-<h1 className="text-2xl font-bold text-gray-900">Campañas de Llamadas</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Campañas de Llamadas</h1>
           <p className="text-gray-600 mt-1">Gestiona las campañas y sus bases de números</p>
         </div>
         <button

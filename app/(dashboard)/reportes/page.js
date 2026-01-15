@@ -202,6 +202,7 @@ export default function ReportesPage() {
           <select
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500"
             onChange={(e) => setTipoReporte(e.target.value)}
+            value={tipoReporte}
           >
             <option value="mensajes">Mensajes</option>
             <option value="llamadas">Llamadas</option>
@@ -408,96 +409,110 @@ export default function ReportesPage() {
                 </div>
                 <div className="p-5">
                   <div className='flex flex-row gap-6 items-center mb-5'>
-                    <h3>Llamadas hoy</h3>
-                    <div className='rounded-[5px] text-white bg-primary-600 p-2'>600</div>
+                    <h3 className='font-semibold text-gray-800'>Llamadas hoy</h3>
+                    <div className='rounded-lg text-white bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-2 font-bold shadow-sm'>600</div>
                   </div>
                   <div className='flex flex-row justify-between'>
                     <div className='flex flex-col gap-4'>
-                      <div className='flex flex-col'>
-                        <div className='flex items-center justify-between'>
-                          <label>Total llamadas</label>
-                          <label>100</label>
+                      <div className='flex flex-col gap-2'>
+                        <div className='flex items-center justify-between mb-1'>
+                          <label className='text-sm font-medium text-gray-700'>Total llamadas</label>
+                          <label className='text-sm font-bold text-gray-900'>100</label>
                         </div>
-                        <div className='bg-primary-600 border border-gray-200 w-[300px] h-6'/>
+                        <div className='relative bg-gray-200 rounded-full w-[300px] h-3 overflow-hidden'>
+                          <div className='absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full shadow-sm' style={{width: '80%'}}/>
+                        </div>
                       </div>
-                      <div className='flex flex-col'>
-                        <div className='flex items-center justify-between'>
-                          <label>Total no atendidas</label>
-                          <label>100</label>
+                      <div className='flex flex-col gap-2'>
+                        <div className='flex items-center justify-between mb-1'>
+                          <label className='text-sm font-medium text-gray-700'>Total no atendidas</label>
+                          <label className='text-sm font-bold text-gray-900'>100</label>
                         </div>
-                        <div className='bg-primary-600 border border-gray-200 w-[300px] h-6'/>
+                        <div className='relative bg-gray-200 rounded-full w-[300px] h-3 overflow-hidden'>
+                          <div className='absolute top-0 left-0 h-full bg-gradient-to-r from-rose-500 to-rose-600 rounded-full shadow-sm' style={{width: '60%'}}/>
+                        </div>
                       </div>
-                      <div className='flex flex-col'>
-                        <div className='flex items-center justify-between'>
-                          <label>Dropped</label>
-                          <label>100</label>
+                      <div className='flex flex-col gap-2'>
+                        <div className='flex items-center justify-between mb-1'>
+                          <label className='text-sm font-medium text-gray-700'>Dropped</label>
+                          <label className='text-sm font-bold text-gray-900'>100</label>
                         </div>
-                        <div className='bg-primary-600 border border-gray-200 w-[300px] h-6'/>
+                        <div className='relative bg-gray-200 rounded-full w-[300px] h-3 overflow-hidden'>
+                          <div className='absolute top-0 left-0 h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full shadow-sm' style={{width: '45%'}}/>
+                        </div>
                       </div>
-                      <div className='flex flex-col'>
-                        <div className='flex items-center justify-between'>
-                          <label>Agentes disponibles</label>
-                          <label>100</label>
+                      <div className='flex flex-col gap-2'>
+                        <div className='flex items-center justify-between mb-1'>
+                          <label className='text-sm font-medium text-gray-700'>Agentes disponibles</label>
+                          <label className='text-sm font-bold text-gray-900'>100</label>
                         </div>
-                        <div className='bg-primary-600 border border-gray-200 w-[300px] h-6'/>
+                        <div className='relative bg-gray-200 rounded-full w-[300px] h-3 overflow-hidden'>
+                          <div className='absolute top-0 left-0 h-full bg-gradient-to-r from-teal-500 to-teal-600 rounded-full shadow-sm' style={{width: '70%'}}/>
+                        </div>
                       </div>
-                      <div className='flex flex-col'>
-                        <div className='flex items-center justify-between'>
-                          <label>Agentes hablando</label>
-                          <label>100</label>
+                      <div className='flex flex-col gap-2'>
+                        <div className='flex items-center justify-between mb-1'>
+                          <label className='text-sm font-medium text-gray-700'>Agentes hablando</label>
+                          <label className='text-sm font-bold text-gray-900'>100</label>
                         </div>
-                        <div className='bg-primary-600 border border-gray-200 w-[300px] h-6'/>
+                        <div className='relative bg-gray-200 rounded-full w-[300px] h-3 overflow-hidden'>
+                          <div className='absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-full shadow-sm' style={{width: '55%'}}/>
+                        </div>
                       </div>
-                      <div className='flex flex-col'>
-                        <div className='flex items-center justify-between'>
-                          <label>Agentes en tipificación</label>
-                          <label>100</label>
+                      <div className='flex flex-col gap-2'>
+                        <div className='flex items-center justify-between mb-1'>
+                          <label className='text-sm font-medium text-gray-700'>Agentes en tipificación</label>
+                          <label className='text-sm font-bold text-gray-900'>100</label>
                         </div>
-                        <div className='bg-primary-600 border border-gray-200 w-[300px] h-6'/>
+                        <div className='relative bg-gray-200 rounded-full w-[300px] h-3 overflow-hidden'>
+                          <div className='absolute top-0 left-0 h-full bg-gradient-to-r from-amber-500 to-amber-600 rounded-full shadow-sm' style={{width: '35%'}}/>
+                        </div>
                       </div>
-                      <div className='flex flex-col'>
-                        <div className='flex items-center justify-between'>
-                          <label>Agentes sin trabajar</label>
-                          <label>100</label>
+                      <div className='flex flex-col gap-2'>
+                        <div className='flex items-center justify-between mb-1'>
+                          <label className='text-sm font-medium text-gray-700'>Agentes sin trabajar</label>
+                          <label className='text-sm font-bold text-gray-900'>100</label>
                         </div>
-                        <div className='bg-primary-600 border border-gray-200 w-[300px] h-6'/>
+                        <div className='relative bg-gray-200 rounded-full w-[300px] h-3 overflow-hidden'>
+                          <div className='absolute top-0 left-0 h-full bg-gradient-to-r from-slate-500 to-slate-600 rounded-full shadow-sm' style={{width: '25%'}}/>
+                        </div>
                       </div>
                     </div>
                     <div className='flex flex-row justify-between gap-5'>
                       <div className='flex flex-col gap-4'>
-                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
-                          <p>00:00:30</p>
-                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>Avg Ready Time</p>
+                        <div className='flex flex-col items-center gap-3 px-4 py-3 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg shadow-sm hover:shadow-md transition-shadow'>
+                          <p className='text-xl font-bold text-blue-900'>00:00:30</p>
+                          <p className='text-xs font-semibold text-blue-700 text-center'>Avg Ready Time</p>
                         </div>
-                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
-                          <p>00:00:30</p>
-                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>Avg Talk Time</p>
+                        <div className='flex flex-col items-center gap-3 px-4 py-3 bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-lg shadow-sm hover:shadow-md transition-shadow'>
+                          <p className='text-xl font-bold text-emerald-900'>00:00:30</p>
+                          <p className='text-xs font-semibold text-emerald-700 text-center'>Avg Talk Time</p>
                         </div>
-                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
-                          <p>20%</p>
-                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>% atendidas</p>
+                        <div className='flex flex-col items-center gap-3 px-4 py-3 bg-gradient-to-br from-teal-50 to-teal-100 border border-teal-200 rounded-lg shadow-sm hover:shadow-md transition-shadow'>
+                          <p className='text-xl font-bold text-teal-900'>20%</p>
+                          <p className='text-xs font-semibold text-teal-700 text-center'>% atendidas</p>
                         </div>
-                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
-                          <p>21</p>
-                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>Agentes conectados</p>
+                        <div className='flex flex-col items-center gap-3 px-4 py-3 bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 rounded-lg shadow-sm hover:shadow-md transition-shadow'>
+                          <p className='text-xl font-bold text-indigo-900'>21</p>
+                          <p className='text-xs font-semibold text-indigo-700 text-center'>Agentes conectados</p>
                         </div>
                       </div>
                       <div className='flex flex-col gap-4'>
-                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
-                          <p>00:00:30</p>
-                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>Medio tiempo llamado</p>
+                        <div className='flex flex-col items-center gap-3 px-4 py-3 bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg shadow-sm hover:shadow-md transition-shadow'>
+                          <p className='text-xl font-bold text-purple-900'>00:00:30</p>
+                          <p className='text-xs font-semibold text-purple-700 text-center'>Medio tiempo llamado</p>
                         </div>
-                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
-                          <p>00:00:30</p>
-                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>Tiempo medio en codificación</p>
+                        <div className='flex flex-col items-center gap-3 px-4 py-3 bg-gradient-to-br from-violet-50 to-violet-100 border border-violet-200 rounded-lg shadow-sm hover:shadow-md transition-shadow'>
+                          <p className='text-xl font-bold text-violet-900'>00:00:30</p>
+                          <p className='text-xs font-semibold text-violet-700 text-center'>Tiempo medio en codificación</p>
                         </div>
-                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
-                          <p>80%</p>
-                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>% no atendidas</p>
+                        <div className='flex flex-col items-center gap-3 px-4 py-3 bg-gradient-to-br from-rose-50 to-rose-100 border border-rose-200 rounded-lg shadow-sm hover:shadow-md transition-shadow'>
+                          <p className='text-xl font-bold text-rose-900'>80%</p>
+                          <p className='text-xs font-semibold text-rose-700 text-center'>% no atendidas</p>
                         </div>
-                        <div className='flex flex-col items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg'>
-                          <p>10</p>
-                          <p className='text-white bg-primary-600 rounded-[5px] font-bold p-2'>Exito</p>
+                        <div className='flex flex-col items-center gap-3 px-4 py-3 bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg shadow-sm hover:shadow-md transition-shadow'>
+                          <p className='text-xl font-bold text-green-900'>10</p>
+                          <p className='text-xs font-semibold text-green-700 text-center'>Exito</p>
                         </div>
                       </div>
                     </div>
