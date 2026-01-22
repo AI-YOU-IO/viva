@@ -247,7 +247,7 @@ export default function CampaniasPage() {
           numeros.data.forEach(async (num) => {
             const llamada = await apiClient.post("http://64.23.133.231:3302/api/calls/ultravox",
               {
-                destination: num.telefono,
+                destination: "51" + num.telefono,
                 systemPrompt: plantillaSeleccionada.prompt_sistema + plantillaSeleccionada.prompt_flujo + plantillaSeleccionada.prompt_cierre,
                 greeting: plantillaSeleccionada.prompt_inicio.replace("{{nombre}}", num.nombre)
               }
