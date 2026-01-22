@@ -20,9 +20,13 @@ export default function CampaniasPage() {
   const [showModal, setShowModal] = useState(false);
   const [showBasesModal, setShowBasesModal] = useState(false);
   const [showEjecucionesModal, setShowEjecucionesModal] = useState(false);
+  const [showPlantillasModal, setShowPlantillasModal] = useState(false);
   const [editingCampania, setEditingCampania] = useState(null);
   const [selectedCampania, setSelectedCampania] = useState(null);
   const [basesAsignadas, setBasesAsignadas] = useState([]);
+  const [baseSeleccionada, setBaseSeleccionada] = useState(null);
+  const [plantillasDisponibles, setPlantillasDisponibles] = useState([]);
+  const [plantillaSeleccionada, setPlantillaSeleccionada] = useState(null);
   const [ejecuciones, setEjecuciones] = useState([]);
   const [ejecutando, setEjecutando] = useState(false);
 
@@ -55,14 +59,16 @@ export default function CampaniasPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [campaniasRes, basesRes, formatosRes] = await Promise.all([
+      const [campaniasRes, basesRes, formatosRes, plantillasRes] = await Promise.all([
         apiClient.get('/crm/campanias'),
         apiClient.get('/crm/bases-numeros'),
-        apiClient.get('/crm/formatos')
+        apiClient.get('/crm/formatos'),
+        apiClient.get('/crm/plantillas')
       ]);
       setCampanias(campaniasRes?.data || []);
       setBasesDisponibles(basesRes?.data || []);
       setFormatos(formatosRes?.data || []);
+      setPlantillasDisponibles(plantillasRes?.data || []);
     } catch (error) {
       console.error('Error al cargar datos:', error);
     } finally {
@@ -177,7 +183,9 @@ export default function CampaniasPage() {
     setSelectedCampania(campania);
     try {
       const response = await apiClient.get(`/crm/campanias/${campania.id}/bases`);
-      setBasesAsignadas(response?.data || []);
+      const bases = response?.data || [];
+      setBasesAsignadas(bases);
+      setBaseSeleccionada(bases.length > 0 ? bases[0].id_base_numero : null);
       setShowBasesModal(true);
     } catch (error) {
       console.error('Error al cargar bases:', error);
@@ -224,20 +232,24 @@ export default function CampaniasPage() {
     }
   };
 
+  // Ver plantillas
+  const handleViewPlantillas = () => {
+    setPlantillaSeleccionada(plantillasDisponibles.length > 0 ? plantillasDisponibles[0] : null);
+    setShowPlantillasModal(true);
+  };
+
   // Ejecutar campania
   const handleEjecutar = async (campania) => {
     if (confirm(`¿Está seguro de ejecutar la campaña "${campania.nombre}"? Esto creará ejecuciones pendientes para todas las bases asignadas.`)) {
       try {
-        const base = await apiClient.get(`/crm/campanias/${campania.id}/bases`);
-        const numeros = await apiClient.get(`/crm/bases-numeros/${base?.data[0].id_base_numero}/detalles`);
-
+        const numeros = await apiClient.get(`/crm/bases-numeros/${baseSeleccionada}/detalles`);
         if (numeros) {
-          numeros.foreach(async (num) => {
-            const llamada = await apiClient.post("http://vast-gpu.ai-ypu.io/api/calls/ultravox",
+          numeros.data.forEach(async (num) => {
+            const llamada = await apiClient.post("http://64.23.133.231:3302/api/calls/ultravox",
               {
                 destination: num.telefono,
-                systemPrompt: "Eres un asistente que le gusta responder consultas de las personas de manera breve",
-                greeting: "Hola buenos días, le habla María de atención al cliente. ¿Cómo se encuentra el día de hoy?"
+                systemPrompt: plantillaSeleccionada.prompt_sistema + plantillaSeleccionada.prompt_flujo + plantillaSeleccionada.prompt_cierre,
+                greeting: plantillaSeleccionada.prompt_inicio.replace("{{nombre}}", num.nombre)
               }
             )
             if (llamada?.data.success) {
@@ -307,6 +319,7 @@ export default function CampaniasPage() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descripcion</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bases</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plantillas</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ejecuciones</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
             </tr>
@@ -329,6 +342,17 @@ export default function CampaniasPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
                     </svg>
                     {campania.total_bases || 0} bases
+                  </button>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <button
+                    onClick={handleViewPlantillas}
+                    className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    {plantillasDisponibles.length} plantillas
                   </button>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -540,7 +564,9 @@ export default function CampaniasPage() {
                 <p className="text-sm text-gray-500">{selectedCampania.nombre}</p>
               </div>
               <button
-                onClick={() => setShowBasesModal(false)}
+                onClick={() => {
+                  setShowBasesModal(false);
+                }}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -587,6 +613,7 @@ export default function CampaniasPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Seleccionar</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Base</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Formato</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Numeros</th>
@@ -595,7 +622,20 @@ export default function CampaniasPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {basesAsignadas.map((base) => (
-                  <tr key={base.id} className="hover:bg-gray-50">
+                  <tr
+                    key={base.id}
+                    className={`hover:bg-gray-50 cursor-pointer ${baseSeleccionada === base.id_base_numero ? 'bg-primary-50' : ''}`}
+                    onClick={() => setBaseSeleccionada(base.id_base_numero)}
+                  >
+                    <td className="px-4 py-3">
+                      <input
+                        type="radio"
+                        name="baseSeleccionada"
+                        checked={baseSeleccionada === base.id_base_numero}
+                        onChange={() => setBaseSeleccionada(base.id_base_numero)}
+                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300"
+                      />
+                    </td>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">{base.base_nombre}</td>
                     <td className="px-4 py-3 text-sm text-gray-500">
                       <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
@@ -605,7 +645,10 @@ export default function CampaniasPage() {
                     <td className="px-4 py-3 text-sm text-gray-500">{base.total_numeros || 0}</td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => handleRemoveBase(base.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveBase(base.id);
+                        }}
                         className="text-red-600 hover:text-red-900"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -686,6 +729,60 @@ export default function CampaniasPage() {
             {ejecuciones.length === 0 && (
               <div className="text-center py-8 text-gray-500 text-sm">
                 No hay ejecuciones registradas para esta campaña
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Plantillas */}
+      {showPlantillasModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Seleccionar Plantilla</h2>
+              <button
+                onClick={() => setShowPlantillasModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Seleccionar</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {plantillasDisponibles.map((plantilla) => (
+                  <tr
+                    key={plantilla.id}
+                    className={`hover:bg-gray-50 cursor-pointer ${plantillaSeleccionada?.id === plantilla.id ? 'bg-primary-50' : ''}`}
+                    onClick={() => setPlantillaSeleccionada(plantilla)}
+                  >
+                    <td className="px-4 py-3">
+                      <input
+                        type="radio"
+                        name="plantillaSeleccionada"
+                        checked={plantillaSeleccionada?.id === plantilla.id}
+                        onChange={() => setPlantillaSeleccionada(plantilla)}
+                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300"
+                      />
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{plantilla.nombre}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {plantillasDisponibles.length === 0 && (
+              <div className="text-center py-8 text-gray-500 text-sm">
+                No hay plantillas disponibles
               </div>
             )}
           </div>
