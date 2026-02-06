@@ -12,6 +12,8 @@ const ESTADOS_EJECUCION = {
   cancelado: { label: 'Cancelado', color: 'bg-gray-100 text-gray-800' },
 };
 
+const numsString = ["cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve"];
+
 export default function CampaniasPage() {
   const [campanias, setCampanias] = useState([]);
   const [basesDisponibles, setBasesDisponibles] = useState([]);
@@ -242,23 +244,45 @@ export default function CampaniasPage() {
   const handleEjecutar = async (campania) => {
     if (confirm(`¿Está seguro de ejecutar la campaña "${campania.nombre}"? Esto creará ejecuciones pendientes para todas las bases asignadas.`)) {
       try {
-        const numeros = await apiClient.get(`/crm/bases-numeros/${baseSeleccionada}/detalles`);
+        const reponse = await apiClient.get(`/crm/bases-numeros/${baseSeleccionada}/detalles`);
+        const numeros = reponse?.data;
         if (numeros) {
-          numeros.data.forEach(async (num) => {
-            const llamada = await apiClient.post("http://64.23.133.231:3302/api/calls/ultravox",
-              {
-                destination: "51" + num.telefono,
-                systemPrompt: plantillaSeleccionada.prompt_sistema + plantillaSeleccionada.prompt_flujo + plantillaSeleccionada.prompt_cierre,
-                greeting: plantillaSeleccionada.prompt_inicio.replace("{{nombre}}", num.nombre)
-              }
-            )
-            if (llamada?.data.success) {
-              console.log(`Número ${num.telefono} realizado con exito`);
+          // numeros.data.forEach(async (num) => {
+          //   const llamada = await apiClient.post("http://64.23.133.231:3302/api/calls/ultravox",
+          //     {
+          //       destination: "51" + num.telefono,
+          //       systemPrompt: plantillaSeleccionada.prompt_sistema + plantillaSeleccionada.prompt_flujo + plantillaSeleccionada.prompt_cierre,
+          //       greeting: plantillaSeleccionada.prompt_inicio.replace("{{nombre}}", num.nombre)
+          //     }
+          //   )
+          //   if (llamada?.data.success) {
+          //     console.log(`Número ${num.telefono} realizado con exito`);
+          //   }
+          //   else {
+          //     console.log(`Error al llamar al número ${num.telefono}`);
+          //   }
+          // });
+          const numero = numeros[0].telefono
+          const nombre = numeros[0].nombre
+          const dni = numeros[0].numero_documento
+          
+          let nuevaPlantilla
+          if (nombre) {
+            nuevaPlantilla = plantillaSeleccionada.prompt_flujo.replaceAll("{{nombre}}", nombre)
+          }
+          const llamada = await apiClient.post("http://64.23.133.231:3302/api/calls/ultravox",
+            {
+              destination: "51" + numero,
+              systemPrompt: plantillaSeleccionada.prompt_sistema + nuevaPlantilla.replaceAll("{{telefono}}", numero) + plantillaSeleccionada.prompt_cierre,
+              greeting: plantillaSeleccionada.prompt_inicio.replace("{{nombre}}", nombre)
             }
-            else {
-              console.log(`Error al llamar al número ${num.telefono}`);
-            }
-          });
+          );
+          if (llamada?.data.success) {
+            console.log(`Número ${numero} realizado con exito`);
+          }
+          else {
+            console.log(`Error al llamar al número ${numero}`);
+          }
         }
       }
       catch (err) {
