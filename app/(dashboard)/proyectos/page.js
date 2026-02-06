@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 
 const API_PROYECTOS = 'https://json-server-two-pink.vercel.app/proyecto';
 const API_UNIDADES = 'https://json-server-two-pink.vercel.app/unidad';
+const API_TIPOLOGIAS = 'https://json-server-two-pink.vercel.app/tipologia';
 
 const STATUS_STYLES = {
   ACTIVO: 'bg-green-100 text-green-800',
@@ -16,6 +17,18 @@ const COMMERCIAL_STATUS_STYLES = {
   disponible: { bg: 'bg-green-100', text: 'text-green-800', dot: 'bg-green-500' },
   separado: { bg: 'bg-yellow-100', text: 'text-yellow-800', dot: 'bg-yellow-500' },
   vendido: { bg: 'bg-red-100', text: 'text-red-800', dot: 'bg-red-500' },
+};
+
+const EMPTY_PROYECTO_FORM = {
+  nombre: '',
+  status: 'ACTIVO',
+  direccion: '',
+  pais: 'Perú',
+  ciudad: '',
+  distrito: '',
+  precio_min: '',
+  precio_max: '',
+  descuento: 0,
 };
 
 const EMPTY_FORM = {
@@ -51,10 +64,26 @@ export default function ProyectosPage() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [tipologias, setTipologias] = useState([]);
+  const [showProyectoModal, setShowProyectoModal] = useState(false);
+  const [editingProyecto, setEditingProyecto] = useState(null);
+  const [proyectoForm, setProyectoForm] = useState(EMPTY_PROYECTO_FORM);
+  const [savingProyecto, setSavingProyecto] = useState(false);
 
   useEffect(() => {
     loadProyectos();
+    loadTipologias();
   }, []);
+
+  const loadTipologias = async () => {
+    try {
+      const response = await fetch(API_TIPOLOGIAS);
+      const data = await response.json();
+      setTipologias(data);
+    } catch (error) {
+      console.error('Error al cargar tipologias:', error);
+    }
+  };
 
   const loadProyectos = async () => {
     try {
@@ -200,6 +229,76 @@ export default function ProyectosPage() {
     } catch (error) {
       console.error('Error al eliminar:', error);
       toast.error('Error al eliminar la unidad');
+    }
+  };
+
+  const openCreateProyecto = () => {
+    setEditingProyecto(null);
+    setProyectoForm(EMPTY_PROYECTO_FORM);
+    setShowProyectoModal(true);
+  };
+
+  const openEditProyecto = (proyecto) => {
+    setEditingProyecto(proyecto);
+    setProyectoForm({
+      nombre: proyecto.nombre || '',
+      status: proyecto.status || 'ACTIVO',
+      direccion: proyecto.direccion || '',
+      pais: proyecto.pais || 'Perú',
+      ciudad: proyecto.ciudad || '',
+      distrito: proyecto.distrito || '',
+      precio_min: proyecto.precio_min || '',
+      precio_max: proyecto.precio_max || '',
+      descuento: proyecto.descuento || 0,
+    });
+    setShowProyectoModal(true);
+  };
+
+  const handleSaveProyecto = async () => {
+    if (!proyectoForm.nombre || !proyectoForm.ciudad || !proyectoForm.distrito) {
+      toast.error('Completa los campos obligatorios: Nombre, Ciudad y Distrito');
+      return;
+    }
+
+    setSavingProyecto(true);
+    try {
+      const payload = {
+        empresa_id: 1,
+        nombre: proyectoForm.nombre,
+        status: proyectoForm.status,
+        direccion: proyectoForm.direccion,
+        pais: proyectoForm.pais,
+        ciudad: proyectoForm.ciudad,
+        distrito: proyectoForm.distrito,
+        imagen: '',
+        precio_min: Number(proyectoForm.precio_min) || 0,
+        precio_max: Number(proyectoForm.precio_max) || 0,
+        descuento: Number(proyectoForm.descuento) || 0,
+      };
+
+      if (editingProyecto) {
+        await fetch(`${API_PROYECTOS}/${editingProyecto.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...payload, id: editingProyecto.id }),
+        });
+        toast.success('Proyecto actualizado correctamente');
+      } else {
+        await fetch(API_PROYECTOS, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        toast.success('Proyecto creado correctamente');
+      }
+
+      setShowProyectoModal(false);
+      loadProyectos();
+    } catch (error) {
+      console.error('Error al guardar proyecto:', error);
+      toast.error('Error al guardar el proyecto');
+    } finally {
+      setSavingProyecto(false);
     }
   };
 
@@ -521,30 +620,21 @@ export default function ProyectosPage() {
                   </div>
                 </div>
 
-                {/* Row 2: Tipo y Tipo Propiedad */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                    <input
-                      type="text"
-                      value={formData.type}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      placeholder="Tipo A - Departamento 1 Dormitorio"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Propiedad</label>
-                    <select
-                      value={formData.property_type}
-                      onChange={(e) => setFormData({ ...formData, property_type: e.target.value })}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    >
-                      <option value="departamento">Departamento</option>
-                      <option value="duplex">Duplex</option>
-                      <option value="penthouse">Penthouse</option>
-                    </select>
-                  </div>
+                {/* Row 2: Tipologia */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipologia</label>
+                  <select
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    <option value="">Seleccionar tipologia...</option>
+                    {tipologias.map((tip) => (
+                      <option key={tip.id} value={tip.attributes.name}>
+                        {tip.attributes.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Row 3: Estado Comercial y Piso */}
@@ -792,6 +882,15 @@ export default function ProyectosPage() {
           <span className="text-sm text-gray-500">
             {filteredProyectos.length} proyecto{filteredProyectos.length !== 1 ? 's' : ''}
           </span>
+          <button
+            onClick={openCreateProyecto}
+            className="flex items-center space-x-2 px-4 py-2.5 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Nuevo Proyecto</span>
+          </button>
         </div>
       </div>
 
@@ -876,6 +975,156 @@ export default function ProyectosPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal Crear/Editar Proyecto */}
+      {showProyectoModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {editingProyecto ? 'Editar Proyecto' : 'Nuevo Proyecto'}
+              </h2>
+              <button
+                onClick={() => setShowProyectoModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Proyecto *</label>
+                <input
+                  type="text"
+                  value={proyectoForm.nombre}
+                  onChange={(e) => setProyectoForm({ ...proyectoForm, nombre: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="Viva Sur"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                  <select
+                    value={proyectoForm.status}
+                    onChange={(e) => setProyectoForm({ ...proyectoForm, status: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  >
+                    <option value="ACTIVO">Activo</option>
+                    <option value="INACTIVO">Inactivo</option>
+                    <option value="EN_CONSTRUCCION">En Construccion</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pais</label>
+                  <input
+                    type="text"
+                    value={proyectoForm.pais}
+                    onChange={(e) => setProyectoForm({ ...proyectoForm, pais: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="Perú"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ciudad *</label>
+                  <input
+                    type="text"
+                    value={proyectoForm.ciudad}
+                    onChange={(e) => setProyectoForm({ ...proyectoForm, ciudad: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="Lima"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Distrito *</label>
+                  <input
+                    type="text"
+                    value={proyectoForm.distrito}
+                    onChange={(e) => setProyectoForm({ ...proyectoForm, distrito: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="Surco"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Direccion</label>
+                <input
+                  type="text"
+                  value={proyectoForm.direccion}
+                  onChange={(e) => setProyectoForm({ ...proyectoForm, direccion: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  placeholder="Av. Primavera 123"
+                />
+              </div>
+
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Precios y Descuento</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Precio Min</label>
+                    <input
+                      type="number"
+                      value={proyectoForm.precio_min}
+                      onChange={(e) => setProyectoForm({ ...proyectoForm, precio_min: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      placeholder="340000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Precio Max</label>
+                    <input
+                      type="number"
+                      value={proyectoForm.precio_max}
+                      onChange={(e) => setProyectoForm({ ...proyectoForm, precio_max: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      placeholder="490000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Descuento (%)</label>
+                    <input
+                      type="number"
+                      value={proyectoForm.descuento}
+                      onChange={(e) => setProyectoForm({ ...proyectoForm, descuento: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      placeholder="5"
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end space-x-3">
+              <button
+                onClick={() => setShowProyectoModal(false)}
+                className="px-4 py-2.5 text-gray-700 font-medium rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveProyecto}
+                disabled={savingProyecto}
+                className="px-6 py-2.5 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                {savingProyecto && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                )}
+                <span>{savingProyecto ? 'Guardando...' : editingProyecto ? 'Actualizar' : 'Crear'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
