@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "WebFetch(domain:json-server-two-pink.vercel.app)",
+      "Bash(git checkout:*)"
+    ]
+  }
+}
