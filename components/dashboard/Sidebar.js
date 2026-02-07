@@ -11,6 +11,7 @@ export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { data: session } = useSession();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [expandedMenus, setExpandedMenus] = useState({});
 
   // Cargar conteo de mensajes no leidos
   useEffect(() => {
@@ -30,6 +31,25 @@ export default function Sidebar() {
       return () => clearInterval(interval);
     }
   }, [session?.accessToken]);
+
+  // Expandir automaticamente el menu si estamos en una subruta
+  useEffect(() => {
+    menuItems.forEach((item) => {
+      if (item.submenu) {
+        const isInSubmenu = item.submenu.some((sub) => pathname.startsWith(sub.path));
+        if (isInSubmenu) {
+          setExpandedMenus((prev) => ({ ...prev, [item.name]: true }));
+        }
+      }
+    });
+  }, [pathname]);
+
+  const toggleSubmenu = (menuName) => {
+    setExpandedMenus((prev) => ({
+      ...prev,
+      [menuName]: !prev[menuName],
+    }));
+  };
 
   // Menú para Super Admin (id_rol=1 y id_empresa=0)
   const superAdminMenuItems = [
@@ -108,6 +128,22 @@ export default function Sidebar() {
       badge: null,
     },
     {
+      name: 'WhatsApp',
+      icon: (
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+        </svg>
+      ),
+      path: '/whatsapp/dashboard',
+      badge: null,
+      submenu: [
+        { name: 'Dashboard', path: '/whatsapp/dashboard' },
+        { name: 'Plantillas', path: '/whatsapp/plantillas' },
+        { name: 'Campañas', path: '/whatsapp/campanas' },
+        { name: 'Sesiones', path: '/whatsapp/sesiones' },
+      ],
+    },
+    {
       name: 'Configuración',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,15 +158,6 @@ export default function Sidebar() {
 
   // Verificar si es Super Admin (id_rol=1 y id_empresa=0)
   const isSuperAdmin = session?.user?.id_rol === 1 && (session?.user?.id_empresa === 0 || session?.user?.id_empresa === '0' || !session?.user?.id_empresa);
-
-  // Debug logs
-  console.log('=== SIDEBAR DEBUG ===');
-  console.log('Session:', session);
-  console.log('Session User:', session?.user);
-  console.log('id_rol:', session?.user?.id_rol, 'tipo:', typeof session?.user?.id_rol);
-  console.log('id_empresa:', session?.user?.id_empresa, 'tipo:', typeof session?.user?.id_empresa);
-  console.log('isSuperAdmin:', isSuperAdmin);
-  console.log('=====================');
 
   // Filtrar menu items basado en los módulos del usuario
   const filteredMenuItems = useMemo(() => {
@@ -151,7 +178,7 @@ export default function Sidebar() {
     const allowedRoutes = userModulos.map(m => m.ruta);
 
     return menuItems.filter(item => allowedRoutes.includes(item.path));
-  }, [session?.user, menuItems, isSuperAdmin, superAdminMenuItems]);
+  }, [session?.user, isSuperAdmin]);
 
   return (
     <aside
@@ -206,40 +233,93 @@ export default function Sidebar() {
       )}
 
       {/* Menu Items */}
-      <nav className="p-3 space-y-1">
+      <nav className="p-3 space-y-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 80px)' }}>
         {filteredMenuItems.map((item) => {
-          const isActive = pathname === item.path;
+          const isActive = pathname === item.path || (item.submenu && item.submenu.some((sub) => pathname === sub.path));
+          const isExpanded = expandedMenus[item.name];
+          const hasSubmenu = item.submenu && item.submenu.length > 0;
+
           return (
-            <Link
-              key={item.path}
-              href={item.path}
-              className={`flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
-                isActive
-                  ? 'bg-white/20 text-white font-medium shadow-lg backdrop-blur-sm'
-                  : 'text-indigo-200 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              <div className={`flex items-center ${isCollapsed ? 'justify-center w-full' : 'space-x-3'}`}>
-                <span className={isActive ? 'text-cyan-300' : 'text-indigo-300'}>
-                  {item.icon}
-                </span>
-                {!isCollapsed && <span>{item.name}</span>}
-              </div>
-              {!isCollapsed && item.badge && (
-                <span className="px-2 py-0.5 text-xs font-semibold bg-cyan-500 text-white rounded-full shadow-md">
-                  {item.badge}
-                </span>
+            <div key={item.path}>
+              {hasSubmenu ? (
+                <>
+                  <button
+                    onClick={() => toggleSubmenu(item.name)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
+                      isActive
+                        ? 'bg-white/20 text-white font-medium shadow-lg backdrop-blur-sm'
+                        : 'text-indigo-200 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <div className={`flex items-center ${isCollapsed ? 'justify-center w-full' : 'space-x-3'}`}>
+                      <span className={isActive ? 'text-cyan-300' : 'text-indigo-300'}>
+                        {item.icon}
+                      </span>
+                      {!isCollapsed && <span>{item.name}</span>}
+                    </div>
+                    {!isCollapsed && (
+                      <svg
+                        className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    )}
+                  </button>
+                  {!isCollapsed && isExpanded && (
+                    <div className="mt-1 ml-4 pl-4 border-l border-indigo-500/30 space-y-1">
+                      {item.submenu.map((subItem) => {
+                        const isSubActive = pathname === subItem.path;
+                        return (
+                          <Link
+                            key={subItem.path}
+                            href={subItem.path}
+                            className={`block px-3 py-2 rounded-lg text-sm transition-all ${
+                              isSubActive
+                                ? 'bg-white/15 text-white font-medium'
+                                : 'text-indigo-300 hover:bg-white/10 hover:text-white'
+                            }`}
+                          >
+                            {subItem.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Link
+                  href={item.path}
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
+                    isActive
+                      ? 'bg-white/20 text-white font-medium shadow-lg backdrop-blur-sm'
+                      : 'text-indigo-200 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  <div className={`flex items-center ${isCollapsed ? 'justify-center w-full' : 'space-x-3'}`}>
+                    <span className={isActive ? 'text-cyan-300' : 'text-indigo-300'}>
+                      {item.icon}
+                    </span>
+                    {!isCollapsed && <span>{item.name}</span>}
+                  </div>
+                  {!isCollapsed && item.badge && (
+                    <span className="px-2 py-0.5 text-xs font-semibold bg-cyan-500 text-white rounded-full shadow-md">
+                      {item.badge}
+                    </span>
+                  )}
+                  {isCollapsed && item.badge && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-xs font-semibold bg-cyan-500 text-white rounded-full shadow-md">
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
               )}
-              {isCollapsed && item.badge && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-xs font-semibold bg-cyan-500 text-white rounded-full shadow-md">
-                  {item.badge}
-                </span>
-              )}
-            </Link>
+            </div>
           );
         })}
       </nav>
-
     </aside>
   );
 }
